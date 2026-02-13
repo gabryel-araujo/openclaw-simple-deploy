@@ -2,19 +2,52 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Agent = {
+interface AgentListItem {
   id: string;
   name: string;
   model: string;
   channel: string;
   status: string;
   railwayServiceId: string | null;
-};
+}
+
+interface ListAgentsResponse {
+  agents: AgentListItem[];
+}
+
+interface AgentMutationResponse {
+  agent: AgentListItem;
+}
+
+interface DeployAgentResponse extends AgentMutationResponse {
+  deploymentId: string;
+}
+
+interface ReadLogsResponse {
+  logs: string | null;
+}
+
+interface ApiErrorResponse {
+  error: string;
+}
+
+interface CreateAgentRequest {
+  name: string;
+  model: string;
+  channel: "telegram";
+}
+
+interface ConfigureAgentRequest {
+  provider: "openai" | "anthropic";
+  apiKey: string;
+  telegramBotToken: string;
+  telegramChatId: string;
+}
 
 const models = ["gpt-4o", "claude-3.5-sonnet", "claude-3.5-opus", "gemini-1.5-flash"];
 
 export function AgentDashboard() {
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState("Meu Agente BR");
   const [model, setModel] = useState(models[0]);
@@ -30,9 +63,23 @@ export function AgentDashboard() {
     [agents, selectedId]
   );
 
+  async function parseJson<T>(response: Response): Promise<T> {
+    return (await response.json()) as T;
+  }
+
+  async function throwIfNotOk(response: Response) {
+    if (response.ok) {
+      return;
+    }
+
+    const data = await parseJson<ApiErrorResponse>(response);
+    throw new Error(data.error ?? `Request failed with status ${response.status}`);
+  }
+
   async function loadAgents() {
     const response = await fetch("/api/agents");
-    const data = await response.json();
+    await throwIfNotOk(response);
+    const data = await parseJson<ListAgentsResponse>(response);
     setAgents(data.agents ?? []);
     if (!selectedId && data.agents?.[0]?.id) {
       setSelectedId(data.agents[0].id);
@@ -46,11 +93,13 @@ export function AgentDashboard() {
   async function createAgent() {
     setLoading(true);
     try {
-      await fetch("/api/agents", {
+      const payload: CreateAgentRequest = { name, model, channel: "telegram" };
+      const response = await fetch("/api/agents", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, model, channel: "telegram" })
+        body: JSON.stringify(payload)
       });
+      await throwIfNotOk(response);
       await loadAgents();
     } finally {
       setLoading(false);
@@ -61,11 +110,19 @@ export function AgentDashboard() {
     if (!selectedAgent) return;
     setLoading(true);
     try {
-      await fetch(`/api/agents/${selectedAgent.id}/config`, {
+      const payload: ConfigureAgentRequest = {
+        provider,
+        apiKey,
+        telegramBotToken,
+        telegramChatId
+      };
+      const response = await fetch(`/api/agents/${selectedAgent.id}/config`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider, apiKey, telegramBotToken, telegramChatId })
+        body: JSON.stringify(payload)
       });
+      await throwIfNotOk(response);
+      await parseJson<DeployAgentResponse>(response);
       await loadAgents();
     } finally {
       setLoading(false);
@@ -76,7 +133,9 @@ export function AgentDashboard() {
     if (!selectedAgent) return;
     setLoading(true);
     try {
-      await fetch(`/api/agents/${selectedAgent.id}/deploy`, { method: "POST" });
+      const response = await fetch(`/api/agents/${selectedAgent.id}/deploy`, { method: "POST" });
+      await throwIfNotOk(response);
+      await parseJson<AgentMutationResponse>(response);
       await loadAgents();
       await readLogs();
     } finally {
@@ -88,7 +147,9 @@ export function AgentDashboard() {
     if (!selectedAgent) return;
     setLoading(true);
     try {
-      await fetch(`/api/agents/${selectedAgent.id}/restart`, { method: "POST" });
+      const response = await fetch(`/api/agents/${selectedAgent.id}/restart`, { method: "POST" });
+      await throwIfNotOk(response);
+      await parseJson<AgentMutationResponse>(response);
       await loadAgents();
     } finally {
       setLoading(false);
@@ -98,7 +159,8 @@ export function AgentDashboard() {
   async function readLogs() {
     if (!selectedAgent) return;
     const response = await fetch(`/api/agents/${selectedAgent.id}/logs`);
-    const data = await response.json();
+    await throwIfNotOk(response);
+    const data = await parseJson<ReadLogsResponse>(response);
     setLogs(data.logs ?? "");
   }
 
