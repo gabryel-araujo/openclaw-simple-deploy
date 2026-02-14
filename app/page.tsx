@@ -3,6 +3,7 @@
 import { AgentIcon } from "@/components/AgentIcon";
 import { ChannelIcon, ChannelType } from "@/components/ChannelIcon";
 import { ModelButton } from "@/components/ModelButton";
+import { createClient } from "@/src/infrastructure/auth/client";
 import Link from "next/link";
 import React from "react";
 
@@ -108,9 +109,17 @@ export default function HomePage() {
           </Link>
           </div> */}
           <section className="my-4">
-            <Link
-              href="/api/auth/google"
-              className="inline-flex items-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-500 shadow-sm ring-1 ring-inset ring-gray-300 transition-all hover:bg-gray-50 hover:text-gray-700"
+            <button
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: {
+                    redirectTo: `${location.origin}/auth/callback?next=/dashboard`,
+                  },
+                });
+              }}
+              className="inline-flex items-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-500 shadow-sm ring-1 ring-inset ring-gray-300 transition-all hover:bg-gray-50 hover:text-gray-700 hover:cursor-pointer"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path
@@ -131,7 +140,7 @@ export default function HomePage() {
                 />
               </svg>
               <span className="mb-0.5 text-slate-900">Entrar com Google</span>
-            </Link>
+            </button>
           </section>
       </section>
     </main>
