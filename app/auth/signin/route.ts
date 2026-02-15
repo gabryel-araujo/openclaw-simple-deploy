@@ -1,6 +1,25 @@
 import { createClient } from "@/src/infrastructure/auth/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * @swagger
+ * /api/auth/signin:
+ *   post:
+ *     description: Sign in with Google token
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Success
+ *       400:
+ *         description: Missing token
+ */
 export async function POST(request: NextRequest) {
   try {
     // Parse the request body to get the token
