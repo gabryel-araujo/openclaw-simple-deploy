@@ -1,7 +1,6 @@
-
 "use client";
 
-import { Bot, Power, RefreshCw, Terminal, ExternalLink, MoreVertical } from "lucide-react";
+import { Bot, Power, RefreshCw, Terminal } from "lucide-react";
 import { useState } from "react";
 
 interface Instance {
@@ -47,9 +46,15 @@ export function InstanceCard({ instance }: { instance: Instance }) {
             <p className="text-xs text-slate-400">{instance.model}</p>
           </div>
         </div>
-        <div className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[status]}`}>
+        <div
+          suppressHydrationWarning
+          className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[status]}`}
+        >
           <div className="flex items-center gap-1.5">
-            <div className={`h-1.5 w-1.5 rounded-full ${status === 'RUNNING' ? 'animate-pulse bg-current' : 'bg-current'}`}></div>
+            <div
+              suppressHydrationWarning
+              className={`h-1.5 w-1.5 rounded-full ${status === "RUNNING" ? "animate-pulse bg-current" : "bg-current"}`}
+            ></div>
             {status}
           </div>
         </div>
@@ -73,15 +78,17 @@ export function InstanceCard({ instance }: { instance: Instance }) {
       <div className="flex gap-2">
         {status === "RUNNING" ? (
           <>
-            <button 
+            <button
               onClick={() => handleAction("RESTART")}
               disabled={isLoading}
               className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-slate-800 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white border border-slate-700 disabled:opacity-50"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+              />
               Reiniciar
             </button>
-            <button 
+            <button
               onClick={() => handleAction("STOP")}
               disabled={isLoading}
               className="flex items-center justify-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20 border border-red-500/20 disabled:opacity-50"
@@ -91,7 +98,7 @@ export function InstanceCard({ instance }: { instance: Instance }) {
             </button>
           </>
         ) : (
-          <button 
+          <button
             onClick={() => handleAction("START")}
             disabled={isLoading}
             className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 py-2 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 border border-emerald-500/20 disabled:opacity-50"
@@ -100,8 +107,11 @@ export function InstanceCard({ instance }: { instance: Instance }) {
             Iniciar
           </button>
         )}
-        
-        <button className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white border border-slate-700" title="Ver Logs">
+
+        <button
+          className="flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white border border-slate-700"
+          title="Ver Logs"
+        >
           <Terminal className="h-3.5 w-3.5" />
         </button>
       </div>

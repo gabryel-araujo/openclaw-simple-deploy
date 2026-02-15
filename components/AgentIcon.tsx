@@ -22,8 +22,8 @@ const ClaudeLogo = (props: React.ComponentProps<"svg">) => (
 );
 
 const GeminiLogo = (props: React.ComponentProps<"svg">) => {
-  const id = React.useId();
-  const gradientId = `gemini-gradient-${id}`;
+  // Use static ID to prevent hydration mismatch
+  const gradientId = "gemini-gradient-static";
 
   return (
     <svg

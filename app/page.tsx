@@ -3,9 +3,10 @@
 import { AgentIcon } from "@/components/AgentIcon";
 import { ChannelIcon, ChannelType } from "@/components/ChannelIcon";
 import { ModelButton } from "@/components/ModelButton";
-import { createClient } from "@/src/infrastructure/auth/client";
-import Link from "next/link";
-import React from "react";
+import { createClient } from "@/src/infrastructure/auth/supabase-client";
+import { GoogleLogin } from "@react-oauth/google";
+import { useRouter } from "next/navigation";
+import React, { useEffect } from "react";
 
 type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash";
 
@@ -62,6 +63,24 @@ export default function HomePage() {
 
   const [model, setModel] = React.useState<ModelKey>("claude-opus");
   const [channel, setChannel] = React.useState<ChannelType>("telegram");
+  const router = useRouter();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        // User is already logged in, redirect to dashboard
+        router.push("/dashboard");
+      }
+    };
+
+    checkSession();
+  }, [router]);
 
   return (
     <main className="mx-auto flex flex-col min-h-screen max-w-5xl items-center px-6 py-16 justify-center">
@@ -98,18 +117,41 @@ export default function HomePage() {
             options={CHATOPTIONS}
           />
         </section>
+        <section className="my-4">
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              console.log(credentialResponse);
+              try {
+                const response = await fetch("/auth/signin", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    token: credentialResponse.credential,
+                  }),
+                });
 
+                const data = await response.json();
 
-        {/* <div className="mt-8 flex gap-3">
-          <Link
-          href="/dashboard"
-          className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-cyan-300"
-          >
-          <p className="text-slate-900">Ir para Dashboard</p>
-          </Link>
-          </div> */}
-          <section className="my-4">
-            <button
+                if (response.ok) {
+                  console.log("Login successful:", data);
+                  // Redirect to dashboard on success
+                  window.location.href = "/dashboard";
+                } else {
+                  console.error("Login error:", data.error);
+                }
+              } catch (error) {
+                console.error("Fetch error:", error);
+              }
+            }}
+            onError={() => {
+              console.log("Login Failed");
+            }}
+            useOneTap={true}
+          />
+
+          {/* <button
               onClick={async () => {
                 const supabase = createClient();
                 await supabase.auth.signInWithOAuth({
@@ -140,8 +182,8 @@ export default function HomePage() {
                 />
               </svg>
               <span className="mb-0.5 text-slate-900">Entrar com Google</span>
-            </button>
-          </section>
+            </button> */}
+        </section>
       </section>
     </main>
   );

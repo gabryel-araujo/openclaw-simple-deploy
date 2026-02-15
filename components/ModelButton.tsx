@@ -3,7 +3,6 @@
 import { CheckIcon } from "lucide-react";
 import * as React from "react";
 
-
 export type Option<T extends string> = {
   value: T;
   label: string;
@@ -26,7 +25,8 @@ export function ModelButton<T extends string>({
   options,
   className = "",
 }: ModelButtonProps<T>) {
-  const name = React.useId();
+  // Use static name to prevent hydration mismatch
+  const name = "model-button-group";
 
   return (
     <fieldset className={className}>

@@ -1,3 +1,4 @@
+"use client";
 
 import { MessageSquare, Clock } from "lucide-react";
 
@@ -21,10 +22,13 @@ export function ActiveChatsWidget({ chats }: { chats: Chat[] }) {
           Últimas 24h
         </span>
       </div>
-      
+
       <div className="divide-y divide-slate-800/50">
         {chats.map((chat) => (
-          <div key={chat.id} className="p-4 transition-colors hover:bg-slate-900/30 cursor-pointer group">
+          <div
+            key={chat.id}
+            className="p-4 transition-colors hover:bg-slate-900/30 cursor-pointer group"
+          >
             <div className="flex justify-between items-start mb-1">
               <span className="text-sm font-medium text-slate-200 group-hover:text-cyan-300 transition-colors">
                 {chat.agentName}
@@ -38,13 +42,18 @@ export function ActiveChatsWidget({ chats }: { chats: Chat[] }) {
               {chat.lastMessage}
             </p>
             <div className="mt-2 flex items-center gap-2">
-                 <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                    chat.platform === 'telegram' ? 'border-sky-500/20 text-sky-400 bg-sky-500/10' :
-                    chat.platform === 'whatsapp' ? 'border-green-500/20 text-green-400 bg-green-500/10' :
-                    'border-indigo-500/20 text-indigo-400 bg-indigo-500/10'
-                 }`}>
-                  {chat.platform}
-                 </span>
+              <span
+                suppressHydrationWarning
+                className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                  chat.platform === "telegram"
+                    ? "border-sky-500/20 text-sky-400 bg-sky-500/10"
+                    : chat.platform === "whatsapp"
+                      ? "border-green-500/20 text-green-400 bg-green-500/10"
+                      : "border-indigo-500/20 text-indigo-400 bg-indigo-500/10"
+                }`}
+              >
+                {chat.platform}
+              </span>
             </div>
           </div>
         ))}
@@ -54,7 +63,7 @@ export function ActiveChatsWidget({ chats }: { chats: Chat[] }) {
           </div>
         )}
       </div>
-      
+
       <div className="p-3 border-t border-slate-800/50 bg-slate-900/20">
         <button className="w-full text-xs text-slate-400 hover:text-white py-1 transition-colors">
           Ver todas as conversas
