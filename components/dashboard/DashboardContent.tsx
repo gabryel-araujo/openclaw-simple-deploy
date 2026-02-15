@@ -3,9 +3,30 @@
 import { ActiveChatsWidget } from "@/components/dashboard/ActiveChatsWidget";
 import { InstanceCard } from "@/components/dashboard/InstanceCard";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { Bot, CreditCard, MessageSquare, Zap } from "lucide-react";
+import { createClient } from "@/src/infrastructure/auth/supabase-client";
+import { User } from "@supabase/supabase-js";
+import {
+  Bot,
+  CreditCard,
+  LogOut,
+  MessageSquare,
+  User as UserIcon,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-export function DashboardContent() {
+export function DashboardContent({ user }: { user: User }) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
   // Mock Data
   const instances = [
     {
@@ -75,11 +96,64 @@ export function DashboardContent() {
             Bem-vindo de volta! Aqui está o resumo dos seus agentes.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-medium">
             <Zap className="h-4 w-4" />
             Plano Pro Ativo
           </span>
+
+          <div className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-2 rounded-full bg-slate-800 p-1 pr-3 hover:bg-slate-700 transition-colors border border-slate-700"
+            >
+              {user.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt={user.user_metadata.full_name || "User"}
+                  className="h-8 w-8 rounded-full"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                  <span className="font-bold">
+                    {user.email?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <span className="text-sm font-medium text-slate-200 hidden md:block">
+                {user.user_metadata?.full_name?.split(" ")[0] || "Usuário"}
+              </span>
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl border border-slate-800 bg-slate-900 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                <div className="py-1">
+                  <div className="px-4 py-3 border-b border-slate-800">
+                    <p className="text-sm text-white font-medium truncate">
+                      {user.user_metadata?.full_name}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                  <Link
+                    href="/dashboard/profile"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+                  >
+                    <UserIcon className="h-4 w-4" />
+                    Meu Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sair
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
