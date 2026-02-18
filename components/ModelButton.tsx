@@ -15,6 +15,8 @@ type ModelButtonProps<T extends string> = {
   value: T;
   onChange: (value: T) => void;
   options: Option<T>[];
+  /** Unique name for this radio group — REQUIRED to keep model and channel selections independent */
+  name: string;
   ariaLabel?: string;
   className?: string;
 };
@@ -23,11 +25,9 @@ export function ModelButton<T extends string>({
   value,
   onChange,
   options,
+  name,
   className = "",
 }: ModelButtonProps<T>) {
-  // Use static name to prevent hydration mismatch
-  const name = "model-button-group";
-
   return (
     <fieldset className={className}>
       <div className="flex flex-wrap gap-3">
@@ -41,7 +41,7 @@ export function ModelButton<T extends string>({
               className={[
                 "group relative inline-flex items-center gap-2.5",
                 "rounded-lg border px-4 py-2.5",
-                "transition",
+                "transition-all duration-150",
                 disabled
                   ? "cursor-not-allowed border-white/5 bg-zinc-950/40 text-zinc-500"
                   : [
@@ -51,7 +51,10 @@ export function ModelButton<T extends string>({
                       "hover:bg-zinc-950/80 hover:border-cyan-700 hover:text-cyan-400",
                       "focus-within:ring-2 focus-within:ring-cyan-400",
                     ].join(" "),
-                selected ? "border-cyan-400 bg-zinc-950/90 text-white" : "",
+                // "Pressed" / always-selected state
+                selected
+                  ? "border-cyan-400 bg-cyan-950/40 text-cyan-300 shadow-[inset_0_2px_6px_rgba(34,211,238,0.15),0_0_0_1px_rgba(34,211,238,0.3)]"
+                  : "",
               ].join(" ")}
             >
               <input
@@ -64,12 +67,12 @@ export function ModelButton<T extends string>({
                 className="sr-only"
               />
 
-              {/* Ícone esquerdo */}
+              {/* Left icon */}
               {opt.icon ? (
                 <span
                   className={[
                     "inline-flex h-5 w-5 items-center justify-center",
-                    disabled ? "text-zinc-600" : "text-zinc-200/90",
+                    disabled ? "text-zinc-600" : selected ? "text-cyan-300" : "text-zinc-200/90",
                   ].join(" ")}
                 >
                   {opt.icon}
@@ -85,7 +88,7 @@ export function ModelButton<T extends string>({
                 </span>
               )}
 
-              {/* Check à direita (só quando selecionado) */}
+              {/* Check icon (visible when selected) */}
               <span
                 className={[
                   "ml-1 inline-flex h-5 w-5 items-center justify-center",
@@ -94,7 +97,7 @@ export function ModelButton<T extends string>({
                 ].join(" ")}
                 aria-hidden="true"
               >
-                <CheckIcon className="h-6 w-6 text-zinc-100" />
+                <CheckIcon className="h-4 w-4 text-cyan-400" />
               </span>
             </label>
           );
