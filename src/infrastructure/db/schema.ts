@@ -1,11 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  uuid
-} from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const agentStatusEnum = pgEnum("agent_status", [
   "DRAFT",
@@ -13,7 +7,7 @@ export const agentStatusEnum = pgEnum("agent_status", [
   "DEPLOYING",
   "RUNNING",
   "FAILED",
-  "STOPPED"
+  "STOPPED",
 ]);
 
 export const agentsTable = pgTable("agents", {
@@ -29,7 +23,7 @@ export const agentsTable = pgTable("agents", {
     .defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
-    .default(sql`now()`)
+    .default(sql`now()`),
 });
 
 export const agentSecretsTable = pgTable("agent_secrets", {
@@ -43,7 +37,7 @@ export const agentSecretsTable = pgTable("agent_secrets", {
   telegramChatId: text("telegram_chat_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
-    .defaultNow()
+    .defaultNow(),
 });
 
 export const deploymentsTable = pgTable("deployments", {
@@ -55,5 +49,17 @@ export const deploymentsTable = pgTable("deployments", {
   logs: text("logs"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
-    .defaultNow()
+    .defaultNow(),
+});
+
+export const paymentsTable = pgTable("payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  transactionId: text("transaction_id").notNull(),
+  status: text("status").notNull(),
+  amount: text("amount").notNull(),
+  planId: text("plan_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

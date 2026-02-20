@@ -1,11 +1,28 @@
 "use client";
 
-import { CheckIcon, Loader2, ShieldCheck, X } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon, DollarSign, Loader2, ShieldCheck, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+declare global {
+  interface Window {
+    MercadoPago: any;
+  }
+}
 
 interface PaymentModalProps {
   planId: string;
   onClose: () => void;
+}
+
+type Step = "plan" | "form";
+type PaymentMethod = "card" | "pix";
+type PaymentStatus = "idle" | "loading" | "success" | "error";
+
+interface PixData {
+  qrCode: string;
+  qrCodeBase64: string;
+  ticketUrl: string;
 }
 
 const PLAN_DISPLAY = {
@@ -23,57 +40,261 @@ const PLAN_DISPLAY = {
 } as const;
 
 export function PaymentModal({ planId, onClose }: PaymentModalProps) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  const router = useRouter();
   const plan = PLAN_DISPLAY[planId as keyof typeof PLAN_DISPLAY];
 
-  const handlePayment = async () => {
-    setLoading(true);
+  // Steps
+  const [step, setStep] = useState<Step>("plan");
+
+  // Payment form
+  const [method, setMethod] = useState<PaymentMethod>("card");
+  const [status, setStatus] = useState<PaymentStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [pixData, setPixData] = useState<PixData | null>(null);
+  const [pixCopied, setPixCopied] = useState(false);
+
+  // Card fields
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCVV, setCardCVV] = useState("");
+  const [cardDocType, setCardDocType] = useState("CPF");
+  const [cardDocNumber, setCardDocNumber] = useState("");
+  const [cardEmail, setCardEmail] = useState("");
+
+  // Auto-detected from card BIN
+  const [cardPaymentMethodId, setCardPaymentMethodId] = useState("");
+  const [cardIssuerId, setCardIssuerId] = useState("");
+
+  // MercadoPago SDK
+  const mpRef = useRef<any>(null);
+
+  useEffect(() => {
+    const publicKey = process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY;
+    if (!publicKey) return;
+
+    if (window.MercadoPago) {
+      mpRef.current = new window.MercadoPago(publicKey, { locale: "pt-BR" });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://sdk.mercadopago.com/js/v2";
+    script.async = true;
+    script.onload = () => {
+      mpRef.current = new window.MercadoPago(publicKey, { locale: "pt-BR" });
+    };
+    document.head.appendChild(script);
+  }, []);
+
+  // ─── Auto-detect issuer + payment method from card BIN ───
+  useEffect(() => {
+    const mp = mpRef.current;
+    const bin = cardNumber.replace(/\s/g, "").slice(0, 6);
+    if (!mp || bin.length < 6) {
+      setCardPaymentMethodId("");
+      setCardIssuerId("");
+      return;
+    }
+
+    mp.getInstallments({ amount: "49.90", bin })
+      .then((result: any[]) => {
+        if (result && result.length > 0) {
+          setCardPaymentMethodId(result[0].payment_method_id || "");
+          setCardIssuerId(result[0].issuer?.id?.toString() || "");
+        }
+      })
+      .catch(() => {
+        setCardPaymentMethodId("");
+        setCardIssuerId("");
+      });
+  }, [cardNumber]);
+
+  // ─── Formatters ───
+  const formatCardNumber = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 16);
+    return d.replace(/(.{4})/g, "$1 ").trim();
+  };
+
+  const formatExpiry = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 4);
+    if (d.length >= 3) return `${d.slice(0, 2)}/${d.slice(2)}`;
+    return d;
+  };
+
+  const formatDoc = (v: string) => {
+    const d = v.replace(/\D/g, "");
+    if (cardDocType === "CPF") {
+      return d
+        .slice(0, 11)
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    }
+    return d
+      .slice(0, 14)
+      .replace(/(\d{2})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1/$2")
+      .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+  };
+
+  // ─── Card payment ───
+  const handleCardPayment = useCallback(async () => {
+    setStatus("loading");
     setError(null);
 
     try {
-      const response = await fetch("/api/payment/create-preference", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Only the planId is sent — price is resolved server-side
-        body: JSON.stringify({ planId }),
+      const mp = mpRef.current;
+      if (!mp) throw new Error("MercadoPago SDK não carregado.");
+
+      const [expMonth, expYear] = cardExpiry.split("/");
+
+      const tokenResult = await mp.createCardToken({
+        cardNumber: cardNumber.replace(/\s/g, ""),
+        cardholderName: cardName,
+        cardExpirationMonth: expMonth,
+        cardExpirationYear: `20${expYear}`,
+        securityCode: cardCVV,
+        identificationType: cardDocType,
+        identificationNumber: cardDocNumber.replace(/\D/g, ""),
       });
 
-      const data = await response.json();
+      if (tokenResult.error) throw new Error(tokenResult.error);
 
-      if (!response.ok) {
-        // Show detail in dev, generic message in prod
-        const msg = data.detail ?? data.error ?? "Erro ao processar pagamento.";
-        setError(msg);
-        return;
+      const res = await fetch("/api/payment/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: tokenResult.id,
+          issuer_id: cardIssuerId,
+          payment_method_id: cardPaymentMethodId,
+          installments: 1,
+          planId,
+          payer: {
+            email: cardEmail,
+            identification: {
+              type: cardDocType,
+              number: cardDocNumber.replace(/\D/g, ""),
+            },
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error)
+        throw new Error(data.error || "Pagamento recusado.");
+
+      if (data.status === "approved") {
+        setStatus("success");
+        setTimeout(() => router.push("/dashboard?payment=success"), 1500);
+      } else if (data.status === "in_process") {
+        setStatus("success");
+        setError("Pagamento em processamento. Você será notificado.");
+        setTimeout(() => router.push("/dashboard?payment=pending"), 3000);
+      } else {
+        throw new Error(
+          data.detail || `Pagamento ${data.status}. Tente novamente.`,
+        );
       }
+    } catch (err: any) {
+      setStatus("error");
+      setError(err.message || "Erro desconhecido.");
+    }
+  }, [
+    cardNumber,
+    cardName,
+    cardExpiry,
+    cardCVV,
+    cardDocType,
+    cardDocNumber,
+    cardEmail,
+    planId,
+    router,
+  ]);
 
-      // Redirect to Mercado Pago Checkout Pro
-      window.location.href = data.init_point;
-    } catch {
-      setError("Erro de conexão. Tente novamente.");
-    } finally {
-      setLoading(false);
+  // ─── Pix payment ───
+  const handlePixPayment = useCallback(async () => {
+    setStatus("loading");
+    setError(null);
+    setPixData(null);
+
+    try {
+      const res = await fetch("/api/payment/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          payment_method_id: "pix",
+          payer: {
+            email: cardEmail || "cliente@email.com",
+            identification: {
+              type: cardDocType,
+              number: cardDocNumber.replace(/\D/g, "") || "00000000000",
+            },
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error)
+        throw new Error(data.error || "Erro ao gerar Pix.");
+
+      if (data.pixQrCode) {
+        setPixData({
+          qrCode: data.pixQrCode,
+          qrCodeBase64: data.pixQrCodeBase64,
+          ticketUrl: data.ticketUrl,
+        });
+        setStatus("idle");
+      } else {
+        throw new Error("QR Code Pix não disponível.");
+      }
+    } catch (err: any) {
+      setStatus("error");
+      setError(err.message || "Erro ao gerar Pix.");
+    }
+  }, [planId, cardEmail, cardDocType, cardDocNumber]);
+
+  const copyPixCode = () => {
+    if (pixData?.qrCode) {
+      navigator.clipboard.writeText(pixData.qrCode);
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 2000);
     }
   };
 
+  const isCardFormValid =
+    cardNumber.replace(/\s/g, "").length >= 13 &&
+    cardName.length >= 3 &&
+    cardExpiry.length === 5 &&
+    cardCVV.length >= 3 &&
+    cardDocNumber.replace(/\D/g, "").length >= 11 &&
+    cardEmail.includes("@");
+
+  // ────────────────────────── INPUT CLASSES ──────────────────────────
+  const inputCls =
+    "w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400";
+
   return (
-    /* Overlay */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+      style={{
+        backgroundColor: "rgba(0,0,0,0.75)",
+        backdropFilter: "blur(6px)",
+      }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* Modal */}
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-700/60 bg-slate-950 shadow-[0_0_80px_-10px_rgba(34,211,238,0.3)] overflow-hidden">
+      <div className="relative w-full max-w-md overflow-y-auto rounded-2xl border border-slate-700/60 bg-slate-950 shadow-[0_0_80px_-10px_rgba(34,211,238,0.3)]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-800">
           <div>
             <p className="text-xs uppercase tracking-widest text-cyan-400 mb-1">
               SimpleClaw BR
             </p>
-            <h2 className="text-xl font-bold text-white">Ativar Licença</h2>
+            <h2 className="text-xl font-bold text-white">
+              {step === "plan" ? "Ativar Licença" : "Dados de Pagamento"}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -84,67 +305,343 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
           </button>
         </div>
 
-        {/* Price highlight */}
-        <div className="px-6 py-6 text-center border-b border-slate-800 bg-slate-900/40">
-          <p className="text-slate-400 text-sm mb-2">{plan?.title ?? planId}</p>
-          <div className="flex items-end justify-center gap-1">
-            <span className="text-5xl font-extrabold text-white tracking-tight">
-              {plan?.price ?? "—"}
-            </span>
-            <span className="text-slate-400 text-lg mb-1">
-              {plan?.period ?? ""}
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            Cobrado mensalmente · Cancele quando quiser
-          </p>
-        </div>
-
-        {/* Features */}
-        <div className="px-6 py-5">
-          <ul className="space-y-3">
-            {plan?.features.map((feature) => (
-              <li key={feature} className="flex items-center gap-3 text-sm text-slate-300">
-                <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-cyan-500/15 border border-cyan-500/30">
-                  <CheckIcon className="h-3 w-3 text-cyan-400" />
+        {/* ═══════════════ STEP 1: Plan ═══════════════ */}
+        {step === "plan" && (
+          <>
+            <div className="px-6 py-6 text-center border-b border-slate-800 bg-slate-900/40">
+              <p className="text-slate-400 text-sm mb-2">
+                {plan?.title ?? planId}
+              </p>
+              <div className="flex items-end justify-center gap-1">
+                <span className="text-5xl font-extrabold text-white tracking-tight">
+                  {plan?.price ?? "—"}
                 </span>
-                {feature}
-              </li>
-            ))}
-          </ul>
-        </div>
+                <span className="text-slate-400 text-lg mb-1">
+                  {plan?.period ?? ""}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Cobrado mensalmente · Cancele quando quiser
+              </p>
+            </div>
 
-        {/* Error */}
-        {error && (
-          <div className="mx-6 mb-4 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
+            <div className="px-6 py-5">
+              <ul className="space-y-3">
+                {plan?.features.map((f) => (
+                  <li
+                    key={f}
+                    className="flex items-center gap-3 text-sm text-slate-300"
+                  >
+                    <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-cyan-500/15 border border-cyan-500/30">
+                      <CheckIcon className="h-3 w-3 text-cyan-400" />
+                    </span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="px-6 pb-6 space-y-3">
+              <button
+                onClick={() => setStep("form")}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3.5 text-sm font-bold text-slate-900 transition hover:bg-cyan-300 active:scale-[0.98]"
+              >
+                Pagar Agora
+              </button>
+              <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Pagamento seguro processado pelo Mercado Pago
+              </div>
+            </div>
+          </>
         )}
 
-        {/* CTA */}
-        <div className="px-6 pb-6 space-y-3">
-          <button
-            onClick={handlePayment}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3.5 text-sm font-bold text-slate-900 transition hover:bg-cyan-300 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Aguarde...
-              </>
-            ) : (
-              <>
-                Pagar com Mercado Pago
-              </>
-            )}
-          </button>
+        {/* ═══════════════ STEP 2: Payment Form ═══════════════ */}
+        {step === "form" && (
+          <div className="px-6 py-5">
+            {/* Back button */}
+            <button
+              onClick={() => {
+                setStep("plan");
+                setStatus("idle");
+                setError(null);
+                setPixData(null);
+              }}
+              className="text-xs text-slate-500 hover:text-white mb-4 flex items-center gap-1 transition"
+            >
+              ← Voltar
+            </button>
 
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Pagamento seguro processado pelo Mercado Pago
+            {/* Method tabs */}
+            <div className="flex gap-2 mb-5">
+              <button
+                onClick={() => {
+                  setMethod("card");
+                  setPixData(null);
+                  setStatus("idle");
+                  setError(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
+                  method === "card"
+                    ? "bg-cyan-400 text-slate-900"
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                💳 Cartão
+              </button>
+              <button
+                onClick={() => {
+                  setMethod("pix");
+                  setStatus("idle");
+                  setError(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
+                  method === "pix"
+                    ? "bg-cyan-400 text-slate-900"
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                <label
+                  htmlFor="pix"
+                  className="flex items-center justify-center"
+                >
+                  <DollarSign className="w-4 h-4" /> Pix
+                </label>
+              </button>
+            </div>
+
+            {/* ─── Card ─── */}
+            {method === "card" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">
+                    Número do cartão
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="0000 0000 0000 0000"
+                    value={cardNumber}
+                    onChange={(e) =>
+                      setCardNumber(formatCardNumber(e.target.value))
+                    }
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">
+                    Nome no cartão
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="NOME COMPLETO"
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Validade
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="MM/AA"
+                      value={cardExpiry}
+                      onChange={(e) =>
+                        setCardExpiry(formatExpiry(e.target.value))
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      CVV
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="123"
+                      value={cardCVV}
+                      onChange={(e) =>
+                        setCardCVV(
+                          e.target.value.replace(/\D/g, "").slice(0, 4),
+                        )
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={cardEmail}
+                    onChange={(e) => setCardEmail(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-28">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Documento
+                    </label>
+                    <select
+                      value={cardDocType}
+                      onChange={(e) => setCardDocType(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    >
+                      <option value="CPF">CPF</option>
+                      <option value="CNPJ">CNPJ</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Número
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        cardDocType === "CPF"
+                          ? "000.000.000-00"
+                          : "00.000.000/0000-00"
+                      }
+                      value={cardDocNumber}
+                      onChange={(e) =>
+                        setCardDocNumber(formatDoc(e.target.value))
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  disabled={!isCardFormValid || status === "loading"}
+                  onClick={handleCardPayment}
+                  className="w-full mt-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                >
+                  {status === "loading" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processando...
+                    </>
+                  ) : status === "success" ? (
+                    "✓ Pagamento aprovado!"
+                  ) : (
+                    `Pagar ${plan?.price ?? "R$ 49,90"}`
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* ─── Pix (form) ─── */}
+            {method === "pix" && !pixData && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={cardEmail}
+                    onChange={(e) => setCardEmail(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-28">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Documento
+                    </label>
+                    <select
+                      value={cardDocType}
+                      onChange={(e) => setCardDocType(e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    >
+                      <option value="CPF">CPF</option>
+                      <option value="CNPJ">CNPJ</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Número
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        cardDocType === "CPF"
+                          ? "000.000.000-00"
+                          : "00.000.000/0000-00"
+                      }
+                      value={cardDocNumber}
+                      onChange={(e) =>
+                        setCardDocNumber(formatDoc(e.target.value))
+                      }
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  disabled={status === "loading"}
+                  onClick={handlePixPayment}
+                  className="w-full mt-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                >
+                  {status === "loading" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Gerando Pix...
+                    </>
+                  ) : (
+                    "Gerar QR Code Pix"
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* ─── Pix QR Code ─── */}
+            {method === "pix" && pixData && (
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-sm text-slate-300">
+                  Escaneie o QR Code ou copie o código Pix:
+                </p>
+                {pixData.qrCodeBase64 && (
+                  <img
+                    src={`data:image/png;base64,${pixData.qrCodeBase64}`}
+                    alt="QR Code Pix"
+                    className="w-48 h-48 rounded-lg bg-white p-2"
+                  />
+                )}
+                <button
+                  onClick={copyPixCode}
+                  className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2.5 text-sm text-cyan-400 hover:bg-slate-700 transition"
+                >
+                  {pixCopied ? "✓ Código copiado!" : "📋 Copiar código Pix"}
+                </button>
+                <p className="text-xs text-slate-500 text-center">
+                  Após a confirmação, você será redirecionado automaticamente.
+                </p>
+              </div>
+            )}
+
+            {/* Error */}
+            {status === "error" && error && (
+              <div className="mt-4 rounded-lg bg-red-900/30 border border-red-800 p-3 text-sm text-red-300">
+                {error}
+              </div>
+            )}
+
+            {/* Success */}
+            {status === "success" && (
+              <div className="mt-4 rounded-lg bg-emerald-900/30 border border-emerald-800 p-3 text-sm text-emerald-300">
+                {error || "Pagamento aprovado! Redirecionando..."}
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
