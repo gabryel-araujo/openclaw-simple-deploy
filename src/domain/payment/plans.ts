@@ -16,7 +16,7 @@ export const PLANS: Record<string, Plan> = {
   "pro-monthly": {
     id: "pro-monthly",
     title: "Plano Pro – Mensal",
-    description: "Deploy ilimitado de agentes OpenClaw com integração Telegram",
+    description: "Deploy de agentes OpenClaw com integração Telegram",
     amount: 49.9,
     currency: "BRL",
   },

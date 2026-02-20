@@ -1,4 +1,9 @@
-import type { Agent, AgentSecret, Deployment, Provider } from "@/src/domain/agent/types";
+import type {
+  Agent,
+  AgentSecret,
+  Deployment,
+  Provider,
+} from "@/src/domain/agent/types";
 
 export type CreateAgentInput = {
   userId: string;
@@ -23,11 +28,13 @@ export interface AgentRepository {
   updateStatus(
     agentId: string,
     status: Agent["status"],
-    railwayServiceId?: string | null
+    railwayServiceId?: string | null,
   ): Promise<Agent>;
   saveSecret(input: Omit<AgentSecret, "id" | "createdAt">): Promise<void>;
   getSecret(agentId: string): Promise<AgentSecret | null>;
-  createDeployment(input: Omit<Deployment, "id" | "createdAt">): Promise<Deployment>;
+  createDeployment(
+    input: Omit<Deployment, "id" | "createdAt">,
+  ): Promise<Deployment>;
   getLatestDeployment(agentId: string): Promise<Deployment | null>;
 }
 
