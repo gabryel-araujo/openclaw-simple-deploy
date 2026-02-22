@@ -63,12 +63,14 @@ const DiscordLogo = (props: React.ComponentProps<"svg">) => (
 );
 
 export function ChannelIcon({ channel, className, ...props }: ChannelIconProps) {
+  const svgClassName = ["h-full w-full", className].filter(Boolean).join(" ");
+
   switch (channel) {
     case "telegram":
-      return <TelegramLogo className={className} {...props} />;
+      return <TelegramLogo className={svgClassName} width="100%" height="100%" {...props} />;
     case "whatsapp":
-      return <WhatsAppLogo className={className} {...props} />;
+      return <WhatsAppLogo className={svgClassName} width="100%" height="100%" {...props} />;
     case "discord":
-      return <DiscordLogo className={className} {...props} />;
+      return <DiscordLogo className={svgClassName} width="100%" height="100%" {...props} />;
   }
 }

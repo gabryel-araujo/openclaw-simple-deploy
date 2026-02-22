@@ -7,7 +7,7 @@ import { PaymentModal } from "@/components/PaymentModal";
 import { TelegramSetupModal } from "@/components/TelegramSetupModal";
 import { createClient } from "@/src/infrastructure/auth/supabase-client";
 import { GoogleLogin } from "@react-oauth/google";
-import { Bot, RefreshCw, Rocket } from "lucide-react";
+import { Bot, CheckCircle2, Clock3, Coins, RefreshCw, Rocket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
@@ -17,8 +17,6 @@ const LS_MODEL_KEY = "brclaw:selected_model";
 const LS_CHANNEL_KEY = "brclaw:selected_channel";
 const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
 const LS_TELEGRAM_BOT_KEY = "brclaw:telegram_bot";
-
-
 
 interface BotInfo {
   id: number;
@@ -85,11 +83,30 @@ export default function HomePage() {
   const [telegramToken, setTelegramToken] = useState<string | null>(null);
   const [telegramBot, setTelegramBot] = useState<BotInfo | null>(null);
   const router = useRouter();
+  const comparisonRows = [
+    {
+      title: "Tempo de setup",
+      tradicional: "Configuração manual de ambiente, deploy e testes",
+      simples: "Fluxo guiado com ativação rápida",
+    },
+    {
+      title: "Custo inicial",
+      tradicional: "Maior custo em horas técnicas e retrabalho",
+      simples: "Menor custo operacional para começar",
+    },
+    {
+      title: "Complexidade",
+      tradicional: "Múltiplas etapas e chance de erro",
+      simples: "Escolha modelo + canal e siga o fluxo",
+    },
+  ] as const;
 
   // Load persisted state from localStorage on mount
   useEffect(() => {
     const savedModel = localStorage.getItem(LS_MODEL_KEY) as ModelKey | null;
-    const savedChannel = localStorage.getItem(LS_CHANNEL_KEY) as ChannelType | null;
+    const savedChannel = localStorage.getItem(
+      LS_CHANNEL_KEY,
+    ) as ChannelType | null;
     const savedToken = localStorage.getItem(LS_TELEGRAM_TOKEN_KEY);
     const savedBot = localStorage.getItem(LS_TELEGRAM_BOT_KEY);
 
@@ -175,24 +192,106 @@ export default function HomePage() {
     !!channel && (channel !== "telegram" || !!telegramToken);
 
   return (
-    <main className="mx-auto flex flex-col min-h-screen max-w-5xl items-center px-6 py-16 justify-center">
-      <section>
-        <h1 className="text-4xl font-semibold leading-tight md:text-5xl text-center">
-          Deploy 1-click do OpenClaw para o mercado brasileiro
-        </h1>
-        <p className="text-center text-slate-400 my-4">
-          Fuja da complexidade e faça o deploy da sua instancia do OpenClaw em
-          menos de 1 minuto.
-        </p>
+    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-10 md:py-14">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-800/70 bg-[radial-gradient(circle_at_top,#12233b_0%,#070b13_60%,#04070d_100%)] p-6 md:p-10">
+        <div className="pointer-events-none absolute -right-12 top-8 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute left-8 top-10 h-20 w-20 rounded-full bg-emerald-400/10 blur-2xl" />
+
+        <div className="max-w-4xl">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
+            <span className="inline-block h-2 w-2 rounded-full bg-cyan-300" />
+            SimpleClaw BR
+          </div>
+
+          <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
+            Deploy do OpenClaw sem travar em configuração.
+          </h1>
+          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-300 md:text-base">
+            Em vez de gastar tempo com setup manual, infraestrutura e ajustes, você
+            escolhe seu modelo, conecta o canal e segue um fluxo simples para ativar
+            sua assinatura e iniciar o deploy.
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <Clock3 className="h-4 w-4 text-cyan-300" />
+              <p className="mt-2 text-sm font-semibold text-white">Ganha tempo</p>
+              <p className="mt-1 text-xs text-slate-400">Menos setup manual e menos retrabalho.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <Coins className="h-4 w-4 text-emerald-300" />
+              <p className="mt-2 text-sm font-semibold text-white">Gasta menos</p>
+              <p className="mt-1 text-xs text-slate-400">Reduz custo inicial de implementação.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:col-span-2 md:col-span-1">
+              <Rocket className="h-4 w-4 text-violet-300" />
+              <p className="mt-2 text-sm font-semibold text-white">Vai ao ponto</p>
+              <p className="mt-1 text-xs text-slate-400">Fluxo direto para ativação e deploy.</p>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="w-full rounded-3xl border border-slate-800/80 bg-slate-950/60 p-8 shadow-[0_0_120px_-20px_rgba(34,211,238,0.35)] backdrop-blur">
-        <p className="mb-2 text-xs uppercase tracking-[0.25em] text-cyan-300">
-          SimpleClaw BR
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-red-500/15 bg-red-500/5 p-5">
+          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-red-300">
+            Método tradicional
+          </p>
+          <div className="space-y-3">
+            {comparisonRows.map((row) => (
+              <div
+                key={`tradicional-${row.title}`}
+                className="rounded-xl border border-white/5 bg-black/20 p-3"
+              >
+                <p className="text-sm font-semibold text-white">{row.title}</p>
+                <p className="mt-1 text-sm text-slate-300">{row.tradicional}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 p-5">
+          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-emerald-300">
+            Método SimpleClaw BR
+          </p>
+          <div className="space-y-3">
+            {comparisonRows.map((row) => (
+              <div
+                key={`simples-${row.title}`}
+                className="rounded-xl border border-white/5 bg-black/20 p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-300" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">{row.title}</p>
+                    <p className="mt-1 text-sm text-slate-200">{row.simples}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="w-full rounded-3xl border border-slate-800/80 bg-slate-950/60 p-8 shadow-[0_0_120px_-20px_rgba(34,211,238,0.25)] backdrop-blur">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.25em] text-cyan-300">
+            SimpleClaw BR
+          </p>
+          <span className="inline-flex items-center rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
+            Poucas unidades disponíveis
+          </span>
+        </div>
+
+        <h2 className="text-xl font-semibold text-white md:text-2xl">
+          Configure seu deploy e avance para a assinatura
+        </h2>
+        <p className="mt-2 text-sm text-slate-400">
+          Selecione o modelo e o canal. O restante do fluxo é guiado.
         </p>
 
         {/* Model selection */}
-        <section>
+        <section className="mt-4">
           <p className="my-4 max-w-2xl text-slate-300 font-bold">
             Qual modelo você gostaria de usar?
           </p>
@@ -234,8 +333,12 @@ export default function HomePage() {
             <div className="mt-4 inline-flex items-center gap-2.5 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
               <Bot className="h-4 w-4 text-emerald-400 flex-shrink-0" />
               <div className="text-xs">
-                <span className="text-emerald-300 font-semibold">{telegramBot.name}</span>
-                <span className="text-emerald-400/60 ml-1">@{telegramBot.username}</span>
+                <span className="text-emerald-300 font-semibold">
+                  {telegramBot.name}
+                </span>
+                <span className="text-emerald-400/60 ml-1">
+                  @{telegramBot.username}
+                </span>
               </div>
               <button
                 onClick={handleReconfigureTelegram}
@@ -246,14 +349,13 @@ export default function HomePage() {
               </button>
             </div>
           )}
-
         </section>
 
         {/* Login / Deploy — only shown when channel is ready */}
         {isChannelReady && (
-          <section className="my-4 w-xs">
+          <section className="my-4 w-full max-w-sm">
             {!isLoggedIn ? (
-              <div className="space-y-2">
+              <div className="space-y-2 rounded-2xl border border-white/10 bg-black/20 p-4">
                 <p className="text-xs text-slate-500">
                   Faça login para continuar com o deploy:
                 </p>
@@ -264,7 +366,7 @@ export default function HomePage() {
                 />
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 rounded-2xl border border-emerald-500/15 bg-emerald-500/5 p-4">
                 <p className="text-sm text-emerald-400 flex items-center gap-2">
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   Login realizado com sucesso!
@@ -274,7 +376,7 @@ export default function HomePage() {
                   className="flex items-center justify-center gap-2.5 rounded-xl bg-cyan-400 px-6 py-3.5 text-sm font-bold text-slate-900 transition hover:bg-cyan-300 active:scale-[0.98] shadow-[0_0_30px_rgba(34,211,238,0.3)]"
                 >
                   <Rocket className="h-4 w-4" />
-                  Fazer Deploy
+                  Garantir assinatura e fazer deploy
                 </button>
               </div>
             )}

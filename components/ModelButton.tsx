@@ -71,7 +71,7 @@ export function ModelButton<T extends string>({
               {opt.icon ? (
                 <span
                   className={[
-                    "inline-flex h-5 w-5 items-center justify-center",
+                    "inline-flex h-5 w-5 items-center justify-center [&>svg]:h-full [&>svg]:w-full [&>svg]:shrink-0",
                     disabled ? "text-zinc-600" : selected ? "text-cyan-300" : "text-zinc-200/90",
                   ].join(" ")}
                 >

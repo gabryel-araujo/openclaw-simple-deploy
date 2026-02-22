@@ -68,12 +68,14 @@ const GptLogo = (props: React.ComponentProps<"svg">) => (
 );
 
 export function AgentIcon({ agent, className, ...props }: AgentIconProps) {
+  const svgClassName = ["h-full w-full", className].filter(Boolean).join(" ");
+
   switch (agent) {
     case "claude":
-      return <ClaudeLogo className={className} {...props} />;
+      return <ClaudeLogo className={svgClassName} width="100%" height="100%" {...props} />;
     case "gemini":
-      return <GeminiLogo className={className} {...props} />;
+      return <GeminiLogo className={svgClassName} width="100%" height="100%" {...props} />;
     case "gpt":
-      return <GptLogo className={className} {...props} />;
+      return <GptLogo className={svgClassName} width="100%" height="100%" {...props} />;
   }
 }
