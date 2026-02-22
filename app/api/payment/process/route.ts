@@ -1,6 +1,7 @@
 import { db } from "@/src/infrastructure/db/client";
 import { paymentsTable } from "@/src/infrastructure/db/schema";
 import { getPlanById } from "@/src/domain/payment/plans";
+import { createClient as createSupabaseServerClient } from "@/src/infrastructure/auth/supabase";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -35,6 +36,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "E-mail do pagador é obrigatório." },
         { status: 400 },
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado." },
+        { status: 401 },
       );
     }
 
@@ -82,9 +96,8 @@ export async function POST(req: NextRequest) {
 
     // Store payment in database (non-blocking — don't fail payment if DB has issues)
     try {
-      const mockUserId = "00000000-0000-0000-0000-000000000000"; // TODO: Get from session
       await db.insert(paymentsTable).values({
-        userId: mockUserId,
+        userId: user.id,
         transactionId: result.id!.toString(),
         status: result.status!,
         amount: result.transaction_amount!.toString(),

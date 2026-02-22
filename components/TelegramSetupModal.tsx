@@ -45,7 +45,11 @@ const STEPS = [
     title: "Crie um novo bot",
     description: (
       <>
-        Envie o comando <code className="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300 text-xs">/newbot</code> para o BotFather
+        Envie o comando{" "}
+        <code className="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300 text-xs">
+          /newbot
+        </code>{" "}
+        para o BotFather
       </>
     ),
   },
@@ -59,7 +63,11 @@ const STEPS = [
     title: "Escolha um username",
     description: (
       <>
-        Deve terminar em <code className="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300 text-xs">bot</code> (ex: meu_assistente_bot)
+        Deve terminar em{" "}
+        <code className="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300 text-xs">
+          bot
+        </code>{" "}
+        (ex: meu_assistente_bot)
       </>
     ),
   },
@@ -67,7 +75,7 @@ const STEPS = [
     number: "5",
     title: "Copie o token",
     description:
-      'O BotFather vai enviar uma mensagem com o token. Copie o código que começa com números seguido de dois pontos (ex: 123456789:ABC...)',
+      "O BotFather vai enviar uma mensagem com o token. Copie o código que começa com números seguido de dois pontos (ex: 123456789:ABC...)",
   },
 ];
 
@@ -173,7 +181,7 @@ export function TelegramSetupModal({
               <ol className="space-y-4">
                 {STEPS.map((s) => (
                   <li key={s.number} className="flex gap-4">
-                    <span className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold">
+                    <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-bold">
                       {s.number}
                     </span>
                     <div className="pt-0.5">
@@ -226,7 +234,9 @@ export function TelegramSetupModal({
                   placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 font-mono"
                   disabled={loading}
-                  onKeyDown={(e) => e.key === "Enter" && !validatedBot && handleValidate()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && !validatedBot && handleValidate()
+                  }
                 />
 
                 {/* Error */}
@@ -239,7 +249,7 @@ export function TelegramSetupModal({
                 {/* Bot validated */}
                 {validatedBot && (
                   <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
                     <div>
                       <p className="text-sm font-semibold text-emerald-300">
                         {validatedBot.name}

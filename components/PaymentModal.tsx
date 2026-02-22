@@ -18,6 +18,7 @@ interface PaymentModalProps {
 type Step = "plan" | "form";
 type PaymentMethod = "card" | "pix";
 type PaymentStatus = "idle" | "loading" | "success" | "error";
+type PostPaymentDialog = "approved" | "in_process" | null;
 
 interface PixData {
   qrCode: string;
@@ -52,6 +53,11 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [pixCopied, setPixCopied] = useState(false);
+  const [postPaymentDialog, setPostPaymentDialog] =
+    useState<PostPaymentDialog>(null);
+  const [postPaymentMessage, setPostPaymentMessage] = useState<string | null>(
+    null,
+  );
 
   // Card fields
   const [cardNumber, setCardNumber] = useState("");
@@ -187,11 +193,16 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
 
       if (data.status === "approved") {
         setStatus("success");
-        setTimeout(() => router.push("/dashboard?payment=success"), 1500);
+        setError(null);
+        setPostPaymentMessage(null);
+        setPostPaymentDialog("approved");
       } else if (data.status === "in_process") {
         setStatus("success");
-        setError("Pagamento em processamento. Você será notificado.");
-        setTimeout(() => router.push("/dashboard?payment=pending"), 3000);
+        setError(null);
+        setPostPaymentMessage(
+          "Pagamento em processamento. Aguarde a confirmação para prosseguir com o deploy.",
+        );
+        setPostPaymentDialog("in_process");
       } else {
         throw new Error(
           data.detail || `Pagamento ${data.status}. Tente novamente.`,
@@ -218,6 +229,7 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
     setStatus("loading");
     setError(null);
     setPixData(null);
+    setPostPaymentDialog(null);
 
     try {
       const res = await fetch("/api/payment/process", {
@@ -227,10 +239,10 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
           planId,
           payment_method_id: "pix",
           payer: {
-            email: cardEmail || "cliente@email.com",
+            email: cardEmail,
             identification: {
               type: cardDocType,
-              number: cardDocNumber.replace(/\D/g, "") || "00000000000",
+              number: cardDocNumber.replace(/\D/g, ""),
             },
           },
         }),
@@ -332,7 +344,7 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                     key={f}
                     className="flex items-center gap-3 text-sm text-slate-300"
                   >
-                    <span className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-cyan-500/15 border border-cyan-500/30">
+                    <span className="shrink-0 flex items-center justify-center h-5 w-5 rounded-full bg-cyan-500/15 border border-cyan-500/30">
                       <CheckIcon className="h-3 w-3 text-cyan-400" />
                     </span>
                     {f}
@@ -350,7 +362,7 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
               </button>
               <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Pagamento seguro processado pelo Mercado Pago
+                Pagamento seguro
               </div>
             </div>
           </>
@@ -528,7 +540,7 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                       Processando...
                     </>
                   ) : status === "success" ? (
-                    "✓ Pagamento aprovado!"
+                    "✓ Pagamento processado"
                   ) : (
                     `Pagar ${plan?.price ?? "R$ 49,90"}`
                   )}
@@ -637,9 +649,64 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
             {/* Success */}
             {status === "success" && (
               <div className="mt-4 rounded-lg bg-emerald-900/30 border border-emerald-800 p-3 text-sm text-emerald-300">
-                {error || "Pagamento aprovado! Redirecionando..."}
+                {postPaymentMessage || "Pagamento aprovado!"}
               </div>
             )}
+          </div>
+        )}
+
+        {postPaymentDialog && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+              {postPaymentDialog === "approved" ? (
+                <>
+                  <h3 className="text-lg font-semibold text-white">
+                    Pagamento aprovado
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Sua assinatura foi confirmada. Deseja prosseguir para o deploy agora?
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => setPostPaymentDialog(null)}
+                      className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
+                    >
+                      Ficar aqui
+                    </button>
+                    <button
+                      onClick={() => router.push("/dashboard?payment=success")}
+                      className="flex-1 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-cyan-300"
+                    >
+                      Prosseguir deploy
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold text-white">
+                    Pagamento em processamento
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Recebemos seu pagamento, mas ele ainda está em análise/aprovação.
+                    Aguarde a confirmação antes de prosseguir com o deploy.
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => setPostPaymentDialog(null)}
+                      className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
+                    >
+                      Entendi
+                    </button>
+                    <button
+                      onClick={() => router.push("/dashboard?payment=pending")}
+                      className="flex-1 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-cyan-300"
+                    >
+                      Ir ao dashboard
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

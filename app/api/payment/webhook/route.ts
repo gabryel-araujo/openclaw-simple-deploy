@@ -1,3 +1,7 @@
+import { db } from "@/src/infrastructure/db/client";
+import { paymentsTable } from "@/src/infrastructure/db/schema";
+import { eq } from "drizzle-orm";
+import { MercadoPagoConfig, Payment } from "mercadopago";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -24,12 +28,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      // TODO: Verify payment status with Mercado Pago API and update user plan in DB
-      // const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
-      // const client = new MercadoPagoConfig({ accessToken });
-      // const payment = new Payment(client);
-      // const result = await payment.get({ id: paymentId });
-      // if (result.status === "approved") { ... update user plan ... }
+      const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+      if (!accessToken) {
+        console.error("[payment/webhook] Missing MERCADO_PAGO_ACCESS_TOKEN");
+        return NextResponse.json({ received: true });
+      }
+
+      const client = new MercadoPagoConfig({ accessToken });
+      const payment = new Payment(client);
+      const result = await payment.get({ id: paymentId });
+
+      if (result?.id && result?.status) {
+        await db
+          .update(paymentsTable)
+          .set({ status: result.status })
+          .where(eq(paymentsTable.transactionId, result.id.toString()));
+      }
 
       console.log("[payment/webhook] Payment ID:", paymentId);
     }
