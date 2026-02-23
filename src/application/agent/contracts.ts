@@ -29,9 +29,15 @@ export interface AgentRepository {
     agentId: string,
     status: Agent["status"],
     railwayServiceId?: string | null,
+    railwayDomain?: string | null,
   ): Promise<Agent>;
   saveSecret(input: Omit<AgentSecret, "id" | "createdAt">): Promise<void>;
   getSecret(agentId: string): Promise<AgentSecret | null>;
+  updateRuntimeSecrets(input: {
+    agentId: string;
+    setupPassword: string;
+    gatewayToken: string;
+  }): Promise<void>;
   createDeployment(
     input: Omit<Deployment, "id" | "createdAt">,
   ): Promise<Deployment>;
@@ -42,10 +48,22 @@ export interface DeploymentGateway {
   deployAgent(input: {
     agentId: string;
     model: string;
+    provider: Provider;
     providerApiKey: string;
     telegramBotToken: string;
     telegramChatId: string;
-  }): Promise<{ serviceId: string; logs: string }>;
+    setupPassword: string;
+    gatewayToken: string;
+  }): Promise<{ serviceId: string; logs: string; railwayDomain: string | null }>;
+  finalizeSetup(input: {
+    serviceId: string;
+    railwayDomain: string | null;
+    setupPassword: string;
+    provider: Provider;
+    providerApiKey: string;
+    model?: string;
+    telegramBotToken: string;
+  }): Promise<{ logs: string; railwayDomain: string }>;
   restartAgent(serviceId: string): Promise<void>;
 }
 

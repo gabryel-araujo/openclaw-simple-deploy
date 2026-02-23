@@ -26,6 +26,7 @@ export type Agent = {
   channel: Channel;
   status: AgentStatus;
   railwayServiceId: string | null;
+  railwayDomain: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -37,6 +38,8 @@ export type AgentSecret = {
   encryptedApiKey: string;
   telegramBotToken: string;
   telegramChatId: string;
+  setupPassword: string | null;
+  gatewayToken: string | null;
   createdAt: Date;
 };
 

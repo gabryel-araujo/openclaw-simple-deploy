@@ -1,5 +1,4 @@
 import { getAgentService } from "@/src/application/container";
-import { randomUUID } from "crypto";
 import { getUserIdFromHeaders, handleApiError, ok } from "@/src/interfaces/http/http";
 
 type RouteContext = {
@@ -11,15 +10,10 @@ export async function POST(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const userId = getUserIdFromHeaders(request.headers);
     const service = getAgentService();
-    const { agent } = await service.deployAgent(userId, id);
-
-    if (agent.status === "FAILED") {
-      const logs = await service.getLogs(userId, id);
-      return handleApiError(new Error(`Deploy failed: ${logs}`));
-    }
-
-    return ok({ deploymentId: randomUUID(), agent });
+    const agent = await service.finalizeSetup(userId, id);
+    return ok({ agent });
   } catch (error) {
     return handleApiError(error);
   }
 }
+

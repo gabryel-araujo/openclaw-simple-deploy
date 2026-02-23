@@ -47,14 +47,23 @@ export class DrizzleAgentRepository implements AgentRepository {
     return agents.map((agent) => this.toAgent(agent));
   }
 
-  async updateStatus(agentId: string, status: AgentStatus, railwayServiceId?: string | null) {
+  async updateStatus(
+    agentId: string,
+    status: AgentStatus,
+    railwayServiceId?: string | null,
+    railwayDomain?: string | null,
+  ) {
     const values: {
       status: AgentStatus;
       updatedAt: Date;
       railwayServiceId?: string | null;
+      railwayDomain?: string | null;
     } = { status, updatedAt: new Date() };
     if (railwayServiceId !== undefined) {
       values.railwayServiceId = railwayServiceId;
+    }
+    if (railwayDomain !== undefined) {
+      values.railwayDomain = railwayDomain;
     }
 
     const [agent] = await db
@@ -72,6 +81,8 @@ export class DrizzleAgentRepository implements AgentRepository {
     encryptedApiKey: string;
     telegramBotToken: string;
     telegramChatId: string;
+    setupPassword?: string | null;
+    gatewayToken?: string | null;
   }) {
     await db.delete(agentSecretsTable).where(eq(agentSecretsTable.agentId, input.agentId));
 
@@ -80,7 +91,9 @@ export class DrizzleAgentRepository implements AgentRepository {
       provider: input.provider,
       encryptedApiKey: input.encryptedApiKey,
       telegramBotToken: input.telegramBotToken,
-      telegramChatId: input.telegramChatId
+      telegramChatId: input.telegramChatId,
+      setupPassword: input.setupPassword ?? null,
+      gatewayToken: input.gatewayToken ?? null,
     });
   }
 
@@ -101,8 +114,24 @@ export class DrizzleAgentRepository implements AgentRepository {
       encryptedApiKey: secret.encryptedApiKey,
       telegramBotToken: secret.telegramBotToken,
       telegramChatId: secret.telegramChatId,
+      setupPassword: secret.setupPassword ?? null,
+      gatewayToken: secret.gatewayToken ?? null,
       createdAt: secret.createdAt
     };
+  }
+
+  async updateRuntimeSecrets(input: {
+    agentId: string;
+    setupPassword: string;
+    gatewayToken: string;
+  }) {
+    await db
+      .update(agentSecretsTable)
+      .set({
+        setupPassword: input.setupPassword,
+        gatewayToken: input.gatewayToken,
+      })
+      .where(eq(agentSecretsTable.agentId, input.agentId));
   }
 
   async createDeployment(input: {
@@ -147,6 +176,7 @@ export class DrizzleAgentRepository implements AgentRepository {
       channel: agent.channel as "telegram",
       status: agent.status,
       railwayServiceId: agent.railwayServiceId,
+      railwayDomain: agent.railwayDomain ?? null,
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt
     };

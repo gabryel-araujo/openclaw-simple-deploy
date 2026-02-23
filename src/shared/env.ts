@@ -5,7 +5,10 @@ const envSchema = z.object({
   APP_SECRET: z.string().min(16),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   RAILWAY_API_TOKEN: z.string().optional(),
-  RAILWAY_PROJECT_ID: z.string().optional()
+  RAILWAY_PROJECT_ID: z.string().optional(),
+  RAILWAY_ENVIRONMENT_ID: z.string().optional(),
+  OPENCLAW_DOCKER_IMAGE: z.string().optional(),
+  OPENCLAW_TEMPLATE_REPO: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -13,5 +16,8 @@ export const env = envSchema.parse({
   APP_SECRET: process.env.APP_SECRET,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   RAILWAY_API_TOKEN: process.env.RAILWAY_API_TOKEN,
-  RAILWAY_PROJECT_ID: process.env.RAILWAY_PROJECT_ID
+  RAILWAY_PROJECT_ID: process.env.RAILWAY_PROJECT_ID,
+  RAILWAY_ENVIRONMENT_ID: process.env.RAILWAY_ENVIRONMENT_ID,
+  OPENCLAW_DOCKER_IMAGE: process.env.OPENCLAW_DOCKER_IMAGE,
+  OPENCLAW_TEMPLATE_REPO: process.env.OPENCLAW_TEMPLATE_REPO,
 });

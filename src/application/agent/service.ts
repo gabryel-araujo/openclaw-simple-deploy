@@ -6,6 +6,7 @@ import type {
   DeploymentGateway,
   EncryptionService
 } from "./contracts";
+import crypto from "node:crypto";
 
 export class AgentService {
   constructor(
@@ -42,7 +43,9 @@ export class AgentService {
       provider: input.provider,
       encryptedApiKey: this.encryptionService.encrypt(input.apiKey),
       telegramBotToken: this.encryptionService.encrypt(input.telegramBotToken),
-      telegramChatId: this.encryptionService.encrypt(input.telegramChatId)
+      telegramChatId: this.encryptionService.encrypt(input.telegramChatId),
+      setupPassword: null,
+      gatewayToken: null,
     });
 
     return this.repository.updateStatus(input.agentId, AGENT_STATUS.CONFIGURED);
@@ -59,6 +62,14 @@ export class AgentService {
       throw new Error("Agent secrets were not configured");
     }
 
+    const setupPasswordPlain = crypto.randomBytes(24).toString("base64url");
+    const gatewayTokenPlain = crypto.randomBytes(32).toString("hex");
+    await this.repository.updateRuntimeSecrets({
+      agentId,
+      setupPassword: this.encryptionService.encrypt(setupPasswordPlain),
+      gatewayToken: this.encryptionService.encrypt(gatewayTokenPlain),
+    });
+
     await this.repository.updateStatus(agentId, AGENT_STATUS.DEPLOYING);
     await this.repository.createDeployment({
       agentId,
@@ -70,9 +81,12 @@ export class AgentService {
       const deployResult = await this.deploymentGateway.deployAgent({
         agentId,
         model: agent.model,
+        provider: secret.provider,
         providerApiKey: this.encryptionService.decrypt(secret.encryptedApiKey),
         telegramBotToken: this.encryptionService.decrypt(secret.telegramBotToken),
-        telegramChatId: this.encryptionService.decrypt(secret.telegramChatId)
+        telegramChatId: this.encryptionService.decrypt(secret.telegramChatId),
+        setupPassword: setupPasswordPlain,
+        gatewayToken: gatewayTokenPlain,
       });
 
       await this.repository.createDeployment({
@@ -83,8 +97,9 @@ export class AgentService {
 
       const updatedAgent = await this.repository.updateStatus(
         agentId,
-        AGENT_STATUS.RUNNING,
-        deployResult.serviceId
+        AGENT_STATUS.DEPLOYING,
+        deployResult.serviceId,
+        deployResult.railwayDomain ?? null,
       );
 
       return { agent: updatedAgent };
@@ -98,6 +113,44 @@ export class AgentService {
       const failedAgent = await this.repository.updateStatus(agentId, AGENT_STATUS.FAILED);
       return { agent: failedAgent };
     }
+  }
+
+  async finalizeSetup(userId: string, agentId: string) {
+    const agent = await this.getAgent(userId, agentId);
+    if (agent.status !== AGENT_STATUS.DEPLOYING) {
+      throw new Error("Agent is not in a deployable state");
+    }
+    if (!agent.railwayServiceId) {
+      throw new Error("Agent runtime service id not available yet");
+    }
+
+    const secret = await this.repository.getSecret(agentId);
+    if (!secret?.setupPassword) {
+      throw new Error("Setup password not found for agent");
+    }
+
+    const setupResult = await this.deploymentGateway.finalizeSetup({
+      serviceId: agent.railwayServiceId,
+      railwayDomain: agent.railwayDomain,
+      setupPassword: this.encryptionService.decrypt(secret.setupPassword),
+      provider: secret.provider,
+      providerApiKey: this.encryptionService.decrypt(secret.encryptedApiKey),
+      model: agent.model.includes("/") ? agent.model : undefined,
+      telegramBotToken: this.encryptionService.decrypt(secret.telegramBotToken),
+    });
+
+    await this.repository.createDeployment({
+      agentId,
+      status: "success",
+      logs: setupResult.logs,
+    });
+
+    return this.repository.updateStatus(
+      agentId,
+      AGENT_STATUS.RUNNING,
+      agent.railwayServiceId,
+      setupResult.railwayDomain,
+    );
   }
 
   async getLogs(userId: string, agentId: string) {

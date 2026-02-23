@@ -19,6 +19,7 @@ type AgentListItem = {
 type CreateAgentResponse = { agent: AgentListItem };
 type ConfigureAgentResponse = { agent: AgentListItem };
 type DeployAgentResponse = { agent: AgentListItem; deploymentId: string };
+type FinalizeAgentResponse = { agent: AgentListItem };
 type ApiErrorResponse = { error: string };
 
 const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
@@ -148,11 +149,17 @@ export function DeployWizard({ user }: { user: User }) {
         headers: { ...headerUserId },
       });
       await throwIfNotOk(deployRes);
-      const deployed = await parseJson<DeployAgentResponse>(deployRes);
+      await parseJson<DeployAgentResponse>(deployRes);
 
-      setStatusMessage(
-        `Deploy iniciado. Status atual do agente: ${deployed.agent.status}`,
-      );
+      setStatusMessage("Deploy iniciado. Finalizando setup do OpenClaw...");
+
+      const finalizeRes = await fetch(`/api/agents/${created.agent.id}/finalize`, {
+        method: "POST",
+        headers: { ...headerUserId },
+      });
+      await throwIfNotOk(finalizeRes);
+      const finalized = await parseJson<FinalizeAgentResponse>(finalizeRes);
+      setStatusMessage(`Setup concluido. Status atual do agente: ${finalized.agent.status}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao iniciar deploy.");
       setStatusMessage(null);

@@ -302,7 +302,7 @@ export function DashboardContent({ user }: { user: User }) {
               Este bloco já usa suas APIs atuais para criar agente, salvar secrets,
               disparar deploy, reiniciar e consultar logs.
             </p>
-            <AgentDashboard />
+            <AgentDashboard userId={user.id} />
           </section>
         </div>
 

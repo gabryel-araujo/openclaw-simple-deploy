@@ -18,6 +18,7 @@ export const agentsTable = pgTable("agents", {
   channel: text("channel").notNull().default("telegram"),
   status: agentStatusEnum("status").notNull().default("DRAFT"),
   railwayServiceId: text("railway_service_id"),
+  railwayDomain: text("railway_domain"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -35,6 +36,8 @@ export const agentSecretsTable = pgTable("agent_secrets", {
   encryptedApiKey: text("encrypted_api_key").notNull(),
   telegramBotToken: text("telegram_bot_token").notNull(),
   telegramChatId: text("telegram_chat_id").notNull(),
+  setupPassword: text("setup_password"),
+  gatewayToken: text("gateway_token"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
