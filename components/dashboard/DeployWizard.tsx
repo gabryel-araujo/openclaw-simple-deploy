@@ -316,21 +316,18 @@ export function DeployWizard({ user }: { user: User }) {
                 type="password"
                 autoComplete="off"
               />
-              <p className="mt-1 text-xs text-slate-500">
-                Preenchido automaticamente do seu cadastro anterior (localStorage).
-              </p>
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">
-                Usuario do Telegram (allowlist)
+                Usuário do Telegram
               </label>
-              <input
-                value={telegramUserId}
-                onChange={(e) => setTelegramUserId(e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                placeholder="Ex: 123456789 (from.id)"
-              />
-              <div className="mt-2 flex gap-2">
+              <div className="flex gap-2">
+                <input
+                  value={telegramUserId}
+                  onChange={(e) => setTelegramUserId(e.target.value)}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                  placeholder="Ex: 123456789"
+                />
                 <button
                   type="button"
                   onClick={autoDetectTelegramUser}
@@ -345,13 +342,13 @@ export function DeployWizard({ user }: { user: User }) {
                   ) : (
                     <>
                       <Bot className="h-3.5 w-3.5" />
-                      Detectar usuario automaticamente
+                      Detectar
                     </>
                   )}
                 </button>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Para detectar automaticamente, envie /start para o bot no Telegram e tente novamente.
+                Para detectar automaticamente, envie uma mensagem para o bot no Telegram e tente novamente.
               </p>
             </div>
           </div>
@@ -369,10 +366,7 @@ export function DeployWizard({ user }: { user: User }) {
         </div>
       )}
 
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-slate-400">
-          O deploy cria um Service no Railway e injeta variaveis do agente.
-        </p>
+      <div className="mt-5 flex justify-end">
         <button
           onClick={deployOneClick}
           disabled={!isReady || loading}
