@@ -18,7 +18,8 @@ export type ConfigAgentInput = {
   provider: Provider;
   apiKey: string;
   telegramBotToken: string;
-  telegramChatId: string;
+  telegramUserId: string;
+  telegramChatId?: string | null;
 };
 
 export interface AgentRepository {
@@ -51,7 +52,8 @@ export interface DeploymentGateway {
     provider: Provider;
     providerApiKey: string;
     telegramBotToken: string;
-    telegramChatId: string;
+    telegramUserId: string;
+    telegramChatId?: string | null;
     setupPassword: string;
     gatewayToken: string;
   }): Promise<{ serviceId: string; logs: string; railwayDomain: string | null }>;
@@ -63,6 +65,7 @@ export interface DeploymentGateway {
     providerApiKey: string;
     model?: string;
     telegramBotToken: string;
+    telegramUserId: string;
   }): Promise<{ logs: string; railwayDomain: string }>;
   restartAgent(serviceId: string): Promise<void>;
 }

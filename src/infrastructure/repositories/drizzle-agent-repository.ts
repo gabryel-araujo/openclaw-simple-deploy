@@ -1,9 +1,10 @@
 import { and, desc, eq } from "drizzle-orm";
 import type {
   AgentRepository,
-  CreateAgentInput
+  CreateAgentInput,
 } from "@/src/application/agent/contracts";
 import type { AgentStatus } from "@/src/domain/agent/types";
+import type { AgentSecret } from "@/src/domain/agent/types";
 import { db } from "@/src/infrastructure/db/client";
 import {
   agentSecretsTable,
@@ -75,15 +76,7 @@ export class DrizzleAgentRepository implements AgentRepository {
     return this.toAgent(agent);
   }
 
-  async saveSecret(input: {
-    agentId: string;
-    provider: "openai" | "anthropic";
-    encryptedApiKey: string;
-    telegramBotToken: string;
-    telegramChatId: string;
-    setupPassword?: string | null;
-    gatewayToken?: string | null;
-  }) {
+  async saveSecret(input: Omit<AgentSecret, "id" | "createdAt">) {
     await db.delete(agentSecretsTable).where(eq(agentSecretsTable.agentId, input.agentId));
 
     await db.insert(agentSecretsTable).values({
@@ -91,7 +84,8 @@ export class DrizzleAgentRepository implements AgentRepository {
       provider: input.provider,
       encryptedApiKey: input.encryptedApiKey,
       telegramBotToken: input.telegramBotToken,
-      telegramChatId: input.telegramChatId,
+      telegramChatId: input.telegramChatId ?? null,
+      telegramUserId: input.telegramUserId ?? null,
       setupPassword: input.setupPassword ?? null,
       gatewayToken: input.gatewayToken ?? null,
     });
@@ -113,7 +107,8 @@ export class DrizzleAgentRepository implements AgentRepository {
       provider: secret.provider as "openai" | "anthropic",
       encryptedApiKey: secret.encryptedApiKey,
       telegramBotToken: secret.telegramBotToken,
-      telegramChatId: secret.telegramChatId,
+      telegramChatId: secret.telegramChatId ?? null,
+      telegramUserId: secret.telegramUserId ?? null,
       setupPassword: secret.setupPassword ?? null,
       gatewayToken: secret.gatewayToken ?? null,
       createdAt: secret.createdAt

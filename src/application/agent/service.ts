@@ -43,7 +43,10 @@ export class AgentService {
       provider: input.provider,
       encryptedApiKey: this.encryptionService.encrypt(input.apiKey),
       telegramBotToken: this.encryptionService.encrypt(input.telegramBotToken),
-      telegramChatId: this.encryptionService.encrypt(input.telegramChatId),
+      telegramUserId: this.encryptionService.encrypt(input.telegramUserId),
+      telegramChatId: input.telegramChatId
+        ? this.encryptionService.encrypt(input.telegramChatId)
+        : null,
       setupPassword: null,
       gatewayToken: null,
     });
@@ -60,6 +63,11 @@ export class AgentService {
     const secret = await this.repository.getSecret(agentId);
     if (!secret) {
       throw new Error("Agent secrets were not configured");
+    }
+    if (!secret.telegramUserId) {
+      throw new Error(
+        "Telegram user id not configured. Send /start to the bot and re-run configuration.",
+      );
     }
 
     const setupPasswordPlain = crypto.randomBytes(24).toString("base64url");
@@ -84,7 +92,10 @@ export class AgentService {
         provider: secret.provider,
         providerApiKey: this.encryptionService.decrypt(secret.encryptedApiKey),
         telegramBotToken: this.encryptionService.decrypt(secret.telegramBotToken),
-        telegramChatId: this.encryptionService.decrypt(secret.telegramChatId),
+        telegramUserId: this.encryptionService.decrypt(secret.telegramUserId),
+        telegramChatId: secret.telegramChatId
+          ? this.encryptionService.decrypt(secret.telegramChatId)
+          : null,
         setupPassword: setupPasswordPlain,
         gatewayToken: gatewayTokenPlain,
       });
@@ -128,6 +139,11 @@ export class AgentService {
     if (!secret?.setupPassword) {
       throw new Error("Setup password not found for agent");
     }
+    if (!secret.telegramUserId) {
+      throw new Error(
+        "Telegram user id not configured. Reconfigure the agent after sending /start to the bot.",
+      );
+    }
 
     const setupResult = await this.deploymentGateway.finalizeSetup({
       serviceId: agent.railwayServiceId,
@@ -137,6 +153,7 @@ export class AgentService {
       providerApiKey: this.encryptionService.decrypt(secret.encryptedApiKey),
       model: agent.model.includes("/") ? agent.model : undefined,
       telegramBotToken: this.encryptionService.decrypt(secret.telegramBotToken),
+      telegramUserId: this.encryptionService.decrypt(secret.telegramUserId),
     });
 
     await this.repository.createDeployment({
@@ -167,5 +184,14 @@ export class AgentService {
 
     await this.deploymentGateway.restartAgent(agent.railwayServiceId);
     return this.repository.updateStatus(agentId, AGENT_STATUS.RUNNING, agent.railwayServiceId);
+  }
+
+  async getGatewayToken(userId: string, agentId: string) {
+    await this.getAgent(userId, agentId);
+    const secret = await this.repository.getSecret(agentId);
+    if (!secret?.gatewayToken) {
+      throw new Error("Gateway token not available for this agent yet");
+    }
+    return this.encryptionService.decrypt(secret.gatewayToken);
   }
 }

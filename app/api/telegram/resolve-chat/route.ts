@@ -4,6 +4,7 @@ type TelegramUpdate = {
   update_id: number;
   message?: {
     chat?: { id: number; type?: string; title?: string; username?: string };
+    from?: { id: number; username?: string; first_name?: string; last_name?: string };
   };
   channel_post?: {
     chat?: { id: number; type?: string; title?: string; username?: string };
@@ -55,9 +56,13 @@ export async function POST(req: NextRequest) {
       const update = updates[index];
       const chat =
         update.message?.chat ?? update.channel_post?.chat ?? undefined;
+      const from = update.message?.from ?? undefined;
       if (chat?.id) {
         return NextResponse.json({
           chatId: String(chat.id),
+          userId: from?.id ? String(from.id) : null,
+          userUsername: from?.username ?? null,
+          userName: [from?.first_name, from?.last_name].filter(Boolean).join(" ") || null,
           chatType: chat.type ?? null,
           chatTitle: chat.title ?? null,
           chatUsername: chat.username ?? null,
@@ -80,4 +85,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

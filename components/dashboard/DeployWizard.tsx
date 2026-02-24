@@ -52,7 +52,8 @@ export function DeployWizard({ user }: { user: User }) {
 
   const [telegramBotToken, setTelegramBotToken] = useState("");
   const [telegramBotLabel, setTelegramBotLabel] = useState<string | null>(null);
-  const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramUserId, setTelegramUserId] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [autoDetectingChat, setAutoDetectingChat] = useState(false);
@@ -63,7 +64,7 @@ export function DeployWizard({ user }: { user: User }) {
     agentName.trim().length >= 2 &&
     apiKey.trim().length >= 10 &&
     telegramBotToken.trim().length >= 10 &&
-    telegramChatId.trim().length >= 2;
+    telegramUserId.trim().length >= 2;
 
   const headerUserId = useMemo(() => ({ "x-user-id": user.id }), [user.id]);
 
@@ -85,7 +86,7 @@ export function DeployWizard({ user }: { user: User }) {
     }
   }, []);
 
-  async function autoDetectTelegramChatId() {
+  async function autoDetectTelegramUser() {
     if (!telegramBotToken.trim()) return;
     setAutoDetectingChat(true);
     setError(null);
@@ -96,17 +97,45 @@ export function DeployWizard({ user }: { user: User }) {
         body: JSON.stringify({ token: telegramBotToken.trim() }),
       });
       await throwIfNotOk(res);
-      const data = (await parseJson(res)) as { chatId: string };
-      setTelegramChatId(data.chatId);
+      const data = (await parseJson(res)) as { chatId: string; userId: string | null };
+      if (!data.userId) {
+        throw new Error(
+          "Nao encontramos um usuario (from.id). Envie /start para o bot em uma conversa privada e tente novamente.",
+        );
+      }
+      setTelegramUserId(String(data.userId));
+      setTelegramChatId(data.chatId ? String(data.chatId) : null);
     } catch (e) {
       setError(
         e instanceof Error
           ? e.message
-          : "Nao foi possivel detectar o chat automaticamente.",
+          : "Nao foi possivel detectar o usuario automaticamente.",
       );
     } finally {
       setAutoDetectingChat(false);
     }
+  }
+
+  async function resolveTelegramContextOrThrow() {
+    if (telegramUserId.trim().length >= 2) return;
+    const token = telegramBotToken.trim();
+    if (!token) {
+      throw new Error("Telegram bot token nao encontrado.");
+    }
+    const res = await fetch("/api/telegram/resolve-chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    await throwIfNotOk(res);
+    const data = (await parseJson(res)) as { chatId: string; userId: string | null };
+    if (!data.userId) {
+      throw new Error(
+        "Nao encontramos um usuario (from.id). Envie /start para o bot no Telegram e tente novamente.",
+      );
+    }
+    setTelegramUserId(String(data.userId));
+    setTelegramChatId(data.chatId ? String(data.chatId) : null);
   }
 
   async function ensureSupabaseSessionFresh() {
@@ -120,6 +149,7 @@ export function DeployWizard({ user }: { user: User }) {
     setStatusMessage("Criando agente...");
     try {
       await ensureSupabaseSessionFresh();
+      await resolveTelegramContextOrThrow();
 
       const createRes = await fetch("/api/agents", {
         method: "POST",
@@ -137,7 +167,8 @@ export function DeployWizard({ user }: { user: User }) {
           provider,
           apiKey: apiKey.trim(),
           telegramBotToken: telegramBotToken.trim(),
-          telegramChatId: telegramChatId.trim(),
+          telegramUserId: telegramUserId.trim(),
+          telegramChatId: telegramChatId?.trim() || undefined,
         }),
       });
       await throwIfNotOk(configRes);
@@ -276,18 +307,18 @@ export function DeployWizard({ user }: { user: User }) {
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">
-                Chat ID (destino)
+                Usuario do Telegram (allowlist)
               </label>
               <input
-                value={telegramChatId}
-                onChange={(e) => setTelegramChatId(e.target.value)}
+                value={telegramUserId}
+                onChange={(e) => setTelegramUserId(e.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-                placeholder="Ex: 123456789"
+                placeholder="Ex: 123456789 (from.id)"
               />
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
-                  onClick={autoDetectTelegramChatId}
+                  onClick={autoDetectTelegramUser}
                   disabled={autoDetectingChat || !telegramBotToken.trim()}
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50"
                 >
@@ -299,13 +330,13 @@ export function DeployWizard({ user }: { user: User }) {
                   ) : (
                     <>
                       <Bot className="h-3.5 w-3.5" />
-                      Detectar chat automaticamente
+                      Detectar usuario automaticamente
                     </>
                   )}
                 </button>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Para detectar automaticamente, envie uma mensagem para o bot no Telegram e tente novamente.
+                Para detectar automaticamente, envie /start para o bot no Telegram e tente novamente.
               </p>
             </div>
           </div>

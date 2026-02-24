@@ -35,7 +35,8 @@ export const agentSecretsTable = pgTable("agent_secrets", {
   provider: text("provider").notNull(),
   encryptedApiKey: text("encrypted_api_key").notNull(),
   telegramBotToken: text("telegram_bot_token").notNull(),
-  telegramChatId: text("telegram_chat_id").notNull(),
+  telegramChatId: text("telegram_chat_id"),
+  telegramUserId: text("telegram_user_id"),
   setupPassword: text("setup_password"),
   gatewayToken: text("gateway_token"),
   createdAt: timestamp("created_at", { withTimezone: true })

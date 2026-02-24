@@ -9,6 +9,7 @@ interface AgentListItem {
   channel: string;
   status: string;
   railwayServiceId: string | null;
+  railwayDomain?: string | null;
 }
 
 interface ListAgentsResponse {
@@ -41,7 +42,8 @@ interface ConfigureAgentRequest {
   provider: "openai" | "anthropic";
   apiKey: string;
   telegramBotToken: string;
-  telegramChatId: string;
+  telegramUserId: string;
+  telegramChatId?: string;
 }
 
 const models = ["gpt-4o", "claude-3.5-sonnet", "claude-3.5-opus", "gemini-1.5-flash"];
@@ -54,9 +56,11 @@ export function AgentDashboard({ userId }: { userId: string }) {
   const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
   const [apiKey, setApiKey] = useState("");
   const [telegramBotToken, setTelegramBotToken] = useState("");
+  const [telegramUserId, setTelegramUserId] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [logs, setLogs] = useState("");
   const [loading, setLoading] = useState(false);
+  const [openingUi, setOpeningUi] = useState(false);
 
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedId) ?? null,
@@ -116,7 +120,8 @@ export function AgentDashboard({ userId }: { userId: string }) {
         provider,
         apiKey,
         telegramBotToken,
-        telegramChatId
+        telegramUserId,
+        telegramChatId: telegramChatId?.trim() ? telegramChatId : undefined,
       };
       const response = await fetch(`/api/agents/${selectedAgent.id}/config`, {
         method: "POST",
@@ -172,6 +177,44 @@ export function AgentDashboard({ userId }: { userId: string }) {
     await throwIfNotOk(response);
     const data = await parseJson<ReadLogsResponse>(response);
     setLogs(data.logs ?? "");
+  }
+
+  async function copyGatewayToken() {
+    if (!selectedAgent) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/agents/${selectedAgent.id}/gateway-token`, {
+        headers: { "x-user-id": userId },
+      });
+      await throwIfNotOk(response);
+      const data = (await parseJson<{ token: string }>(response)) as { token: string };
+      await navigator.clipboard.writeText(data.token);
+      setLogs("Gateway token copiado para a area de transferencia.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openControlUi() {
+    if (!selectedAgent?.railwayDomain) return;
+    setOpeningUi(true);
+    try {
+      // OpenClaw Control UI supports a tokenized link: /openclaw?token=...
+      // This avoids the manual "paste gateway token" step.
+      const response = await fetch(`/api/agents/${selectedAgent.id}/gateway-token`, {
+        headers: { "x-user-id": userId },
+      });
+      await throwIfNotOk(response);
+      const data = (await parseJson<{ token: string }>(response)) as { token: string };
+      const base = `https://${selectedAgent.railwayDomain}/openclaw`;
+      const url = data.token ? `${base}?token=${encodeURIComponent(data.token)}` : base;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      const base = `https://${selectedAgent.railwayDomain}/openclaw`;
+      window.open(base, "_blank", "noopener,noreferrer");
+    } finally {
+      setOpeningUi(false);
+    }
   }
 
   return (
@@ -255,9 +298,15 @@ export function AgentDashboard({ userId }: { userId: string }) {
           />
           <input
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+            value={telegramUserId}
+            onChange={(event) => setTelegramUserId(event.target.value)}
+            placeholder="Telegram User ID (from.id) - allowlist"
+          />
+          <input
+            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
             value={telegramChatId}
             onChange={(event) => setTelegramChatId(event.target.value)}
-            placeholder="Telegram Chat ID"
+            placeholder="Telegram Chat ID (opcional)"
           />
           <button
             onClick={configureAgent}
@@ -293,6 +342,23 @@ export function AgentDashboard({ userId }: { userId: string }) {
           >
             Ver Logs
           </button>
+          <button
+            onClick={copyGatewayToken}
+            disabled={!selectedAgent || loading}
+            className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200"
+            title="Necessario para conectar a Control UI ao gateway"
+          >
+            Copiar Gateway Token
+          </button>
+          {selectedAgent?.railwayDomain ? (
+            <button
+              onClick={openControlUi}
+              disabled={loading || openingUi}
+              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200"
+            >
+              Abrir Control UI
+            </button>
+          ) : null}
         </div>
         <pre className="mt-4 min-h-[120px] rounded-lg border border-slate-800 bg-black/40 p-3 text-xs text-slate-300">
           {logs || "Sem logs ainda"}

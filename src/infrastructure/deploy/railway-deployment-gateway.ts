@@ -6,7 +6,8 @@ type RailwayDeployInput = {
   provider: "openai" | "anthropic";
   providerApiKey: string;
   telegramBotToken: string;
-  telegramChatId: string;
+  telegramUserId: string;
+  telegramChatId?: string | null;
   setupPassword: string;
   gatewayToken: string;
 };
@@ -135,7 +136,10 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
           ? { OPENAI_API_KEY: input.providerApiKey }
           : { ANTHROPIC_API_KEY: input.providerApiKey }),
         TELEGRAM_BOT_TOKEN: input.telegramBotToken,
-        TELEGRAM_CHAT_ID: input.telegramChatId,
+        TELEGRAM_CHAT_ID: input.telegramChatId ?? "",
+        // 1-click Telegram: allowlist the owning user id (no pairing step).
+        TELEGRAM_USER_ID: input.telegramUserId,
+        TELEGRAM_ALLOW_FROM: input.telegramUserId,
       };
 
       await this.graphqlRequestLabeled(
@@ -197,6 +201,7 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
     providerApiKey: string;
     model?: string;
     telegramBotToken: string;
+    telegramUserId: string;
   }) {
     let domain = input.railwayDomain;
     if (!domain) {
@@ -298,6 +303,9 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
       authChoice,
       authSecret: input.providerApiKey,
       telegramToken: input.telegramBotToken,
+      // These fields are meant for our forked template (no pairing).
+      telegramDmPolicy: "allowlist",
+      telegramAllowFrom: [input.telegramUserId],
     };
     if (input.model) payload.model = input.model;
 
@@ -339,6 +347,35 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
       // Backoff to allow Railway to finish booting internal gateway processes.
       const waitMs = 12_000 + attempt * 8_000;
       await new Promise((r) => setTimeout(r, waitMs));
+    }
+
+    // After setup, wait until the wrapper reports "configured" if available.
+    // This makes our "RUNNING" status closer to "bot is actually ready".
+    const readyDeadlineMs = 180_000;
+    const readyStartedAt = Date.now();
+    while (Date.now() - readyStartedAt < readyDeadlineMs) {
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`${baseUrl}/setup/healthz`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        clearTimeout(t);
+        if (!res.ok) {
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
+        const maybeJson = await res.json().catch(() => null);
+        const configured =
+          typeof maybeJson?.configured === "boolean" ? maybeJson.configured : null;
+        if (configured === null || configured === true) {
+          break;
+        }
+      } catch {
+        // ignore transient
+      }
+      await new Promise((r) => setTimeout(r, 3000));
     }
 
     return {

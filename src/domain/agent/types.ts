@@ -37,7 +37,8 @@ export type AgentSecret = {
   provider: Provider;
   encryptedApiKey: string;
   telegramBotToken: string;
-  telegramChatId: string;
+  telegramChatId: string | null;
+  telegramUserId: string | null;
   setupPassword: string | null;
   gatewayToken: string | null;
   createdAt: Date;

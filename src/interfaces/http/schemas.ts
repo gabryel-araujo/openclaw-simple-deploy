@@ -10,5 +10,6 @@ export const configAgentSchema = z.object({
   provider: z.enum(["openai", "anthropic"]),
   apiKey: z.string().min(10),
   telegramBotToken: z.string().min(10),
-  telegramChatId: z.string().min(2)
+  telegramUserId: z.string().min(2),
+  telegramChatId: z.string().min(2).optional(),
 });
