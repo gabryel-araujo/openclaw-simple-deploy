@@ -26,10 +26,17 @@ const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
 const LS_TELEGRAM_BOT_KEY = "brclaw:telegram_bot";
 
 const MODEL_PRESETS = [
-  { value: "gpt-4o", label: "GPT-4o" },
-  { value: "claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
-  { value: "claude-3.5-opus", label: "Claude 3.5 Opus" },
-  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+  { value: "gpt-4o", label: "GPT-4o", provider: "openai" as const },
+  {
+    value: "claude-3.5-sonnet",
+    label: "Claude 3.5 Sonnet",
+    provider: "anthropic" as const,
+  },
+  {
+    value: "claude-3.5-opus",
+    label: "Claude 3.5 Opus",
+    provider: "anthropic" as const,
+  },
 ] as const;
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -67,6 +74,14 @@ export function DeployWizard({ user }: { user: User }) {
     telegramUserId.trim().length >= 2;
 
   const headerUserId = useMemo(() => ({ "x-user-id": user.id }), [user.id]);
+  const availableModels = MODEL_PRESETS.filter((preset) => preset.provider === provider);
+
+  useEffect(() => {
+    const fallbackModel = availableModels[0]?.value;
+    if (fallbackModel && !availableModels.some((preset) => preset.value === model)) {
+      setModel(fallbackModel);
+    }
+  }, [availableModels, model]);
 
   useEffect(() => {
     try {
@@ -242,7 +257,7 @@ export function DeployWizard({ user }: { user: User }) {
                 onChange={(e) => setModel(e.target.value as any)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
               >
-                {MODEL_PRESETS.map((m) => (
+                {availableModels.map((m) => (
                   <option key={m.value} value={m.value}>
                     {m.label}
                   </option>

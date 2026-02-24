@@ -4,15 +4,27 @@ import type {
   ConfigAgentInput,
   CreateAgentInput,
   DeploymentGateway,
-  EncryptionService
+  EncryptionService,
 } from "./contracts";
 import crypto from "node:crypto";
+
+const PROVIDER_MODEL_PREFIXES = {
+  openai: ["gpt-"],
+  anthropic: ["claude-"],
+} as const;
+
+function toOpenClawModelRef(provider: "openai" | "anthropic", model: string) {
+  const normalized = model.trim().toLowerCase();
+  if (!normalized) return normalized;
+  if (normalized.includes("/")) return normalized;
+  return `${provider}/${normalized}`;
+}
 
 export class AgentService {
   constructor(
     private readonly repository: AgentRepository,
     private readonly deploymentGateway: DeploymentGateway,
-    private readonly encryptionService: EncryptionService
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   async createAgent(input: CreateAgentInput) {
@@ -34,9 +46,19 @@ export class AgentService {
 
   async configureAgent(input: ConfigAgentInput) {
     const agent = await this.getAgent(input.userId, input.agentId);
-    if (agent.status !== AGENT_STATUS.DRAFT && agent.status !== AGENT_STATUS.CONFIGURED) {
+    if (
+      agent.status !== AGENT_STATUS.DRAFT &&
+      agent.status !== AGENT_STATUS.CONFIGURED &&
+      agent.status !== AGENT_STATUS.RUNNING &&
+      agent.status !== AGENT_STATUS.STOPPED &&
+      agent.status !== AGENT_STATUS.FAILED
+    ) {
       throw new Error("Agent is not configurable in the current status");
     }
+
+    this.assertProviderSupportsModel(input.provider, agent.model);
+
+    const existingSecret = await this.repository.getSecret(input.agentId);
 
     await this.repository.saveSecret({
       agentId: input.agentId,
@@ -47,16 +69,28 @@ export class AgentService {
       telegramChatId: input.telegramChatId
         ? this.encryptionService.encrypt(input.telegramChatId)
         : null,
-      setupPassword: null,
-      gatewayToken: null,
+      // Preserve runtime secrets so we can re-run /finalize on an already-deployed agent.
+      setupPassword: existingSecret?.setupPassword ?? null,
+      gatewayToken: existingSecret?.gatewayToken ?? null,
     });
 
-    return this.repository.updateStatus(input.agentId, AGENT_STATUS.CONFIGURED);
+    // Only force CONFIGURED when the agent isn't already deployed/running.
+    if (
+      agent.status === AGENT_STATUS.DRAFT ||
+      agent.status === AGENT_STATUS.CONFIGURED
+    ) {
+      return this.repository.updateStatus(input.agentId, AGENT_STATUS.CONFIGURED);
+    }
+
+    return agent;
   }
 
   async deployAgent(userId: string, agentId: string) {
     const agent = await this.getAgent(userId, agentId);
-    if (agent.status !== AGENT_STATUS.CONFIGURED && agent.status !== AGENT_STATUS.STOPPED) {
+    if (
+      agent.status !== AGENT_STATUS.CONFIGURED &&
+      agent.status !== AGENT_STATUS.STOPPED
+    ) {
       throw new Error("Agent must be configured before deploy");
     }
 
@@ -82,16 +116,20 @@ export class AgentService {
     await this.repository.createDeployment({
       agentId,
       status: "started",
-      logs: "Deploy started"
+      logs: "Deploy started",
     });
 
     try {
+      this.assertProviderSupportsModel(secret.provider, agent.model);
+
       const deployResult = await this.deploymentGateway.deployAgent({
         agentId,
-        model: agent.model,
+        model: toOpenClawModelRef(secret.provider, agent.model),
         provider: secret.provider,
         providerApiKey: this.encryptionService.decrypt(secret.encryptedApiKey),
-        telegramBotToken: this.encryptionService.decrypt(secret.telegramBotToken),
+        telegramBotToken: this.encryptionService.decrypt(
+          secret.telegramBotToken,
+        ),
         telegramUserId: this.encryptionService.decrypt(secret.telegramUserId),
         telegramChatId: secret.telegramChatId
           ? this.encryptionService.decrypt(secret.telegramChatId)
@@ -103,7 +141,7 @@ export class AgentService {
       await this.repository.createDeployment({
         agentId,
         status: "success",
-        logs: deployResult.logs
+        logs: deployResult.logs,
       });
 
       const updatedAgent = await this.repository.updateStatus(
@@ -118,17 +156,23 @@ export class AgentService {
       await this.repository.createDeployment({
         agentId,
         status: "failed",
-        logs: String(error)
+        logs: String(error),
       });
 
-      const failedAgent = await this.repository.updateStatus(agentId, AGENT_STATUS.FAILED);
+      const failedAgent = await this.repository.updateStatus(
+        agentId,
+        AGENT_STATUS.FAILED,
+      );
       return { agent: failedAgent };
     }
   }
 
   async finalizeSetup(userId: string, agentId: string) {
     const agent = await this.getAgent(userId, agentId);
-    if (agent.status !== AGENT_STATUS.DEPLOYING) {
+    if (
+      agent.status !== AGENT_STATUS.DEPLOYING &&
+      agent.status !== AGENT_STATUS.RUNNING
+    ) {
       throw new Error("Agent is not in a deployable state");
     }
     if (!agent.railwayServiceId) {
@@ -145,13 +189,15 @@ export class AgentService {
       );
     }
 
+    this.assertProviderSupportsModel(secret.provider, agent.model);
+
     const setupResult = await this.deploymentGateway.finalizeSetup({
       serviceId: agent.railwayServiceId,
       railwayDomain: agent.railwayDomain,
       setupPassword: this.encryptionService.decrypt(secret.setupPassword),
       provider: secret.provider,
       providerApiKey: this.encryptionService.decrypt(secret.encryptedApiKey),
-      model: agent.model.includes("/") ? agent.model : undefined,
+      model: toOpenClawModelRef(secret.provider, agent.model),
       telegramBotToken: this.encryptionService.decrypt(secret.telegramBotToken),
       telegramUserId: this.encryptionService.decrypt(secret.telegramUserId),
     });
@@ -183,7 +229,11 @@ export class AgentService {
     }
 
     await this.deploymentGateway.restartAgent(agent.railwayServiceId);
-    return this.repository.updateStatus(agentId, AGENT_STATUS.RUNNING, agent.railwayServiceId);
+    return this.repository.updateStatus(
+      agentId,
+      AGENT_STATUS.RUNNING,
+      agent.railwayServiceId,
+    );
   }
 
   async getGatewayToken(userId: string, agentId: string) {
@@ -193,5 +243,45 @@ export class AgentService {
       throw new Error("Gateway token not available for this agent yet");
     }
     return this.encryptionService.decrypt(secret.gatewayToken);
+  }
+
+  async getSetupPassword(userId: string, agentId: string) {
+    await this.getAgent(userId, agentId);
+    const secret = await this.repository.getSecret(agentId);
+    if (!secret?.setupPassword) {
+      throw new Error("Setup password not available for this agent yet");
+    }
+    return this.encryptionService.decrypt(secret.setupPassword);
+  }
+
+  private assertProviderSupportsModel(
+    provider: "openai" | "anthropic",
+    model: string,
+  ) {
+    const normalizedModel = model.trim().toLowerCase();
+    if (!normalizedModel) {
+      throw new Error("Model is required");
+    }
+
+    const parts = normalizedModel.split("/");
+    const providerInRef = parts.length >= 2 ? parts[0] : null;
+    const modelId = parts.length >= 2 ? parts.slice(1).join("/") : normalizedModel;
+
+    if (providerInRef && providerInRef !== provider) {
+      throw new Error(
+        `Model "${model}" is not compatible with provider "${provider}" (got ${providerInRef}).`,
+      );
+    }
+    const allowedPrefixes = PROVIDER_MODEL_PREFIXES[provider];
+    const isSupported = allowedPrefixes.some((prefix) =>
+      modelId.startsWith(prefix),
+    );
+
+    if (isSupported) return;
+
+    const expectedFamily = provider === "openai" ? "gpt-*" : "claude-*";
+    throw new Error(
+      `Model "${model}" is not compatible with provider "${provider}" (expected ${expectedFamily}).`,
+    );
   }
 }

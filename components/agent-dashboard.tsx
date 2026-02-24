@@ -20,10 +20,6 @@ interface AgentMutationResponse {
   agent: AgentListItem;
 }
 
-interface DeployAgentResponse extends AgentMutationResponse {
-  deploymentId: string;
-}
-
 interface ReadLogsResponse {
   logs: string | null;
 }
@@ -46,13 +42,21 @@ interface ConfigureAgentRequest {
   telegramChatId?: string;
 }
 
-const models = ["gpt-4o", "claude-3.5-sonnet", "claude-3.5-opus", "gemini-1.5-flash"];
+const MODEL_PRESETS = [
+  { value: "gpt-4o", provider: "openai" as const },
+  { value: "claude-3.5-sonnet", provider: "anthropic" as const },
+  { value: "claude-3.5-opus", provider: "anthropic" as const },
+] as const;
+
+const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
 
 export function AgentDashboard({ userId }: { userId: string }) {
   const [agents, setAgents] = useState<AgentListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState("Meu Agente BR");
-  const [model, setModel] = useState(models[0]);
+  const [newAgentModel, setNewAgentModel] = useState<
+    (typeof MODEL_PRESETS)[number]["value"]
+  >(MODEL_PRESETS[0].value);
   const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
   const [apiKey, setApiKey] = useState("");
   const [telegramBotToken, setTelegramBotToken] = useState("");
@@ -61,11 +65,26 @@ export function AgentDashboard({ userId }: { userId: string }) {
   const [logs, setLogs] = useState("");
   const [loading, setLoading] = useState(false);
   const [openingUi, setOpeningUi] = useState(false);
+  const [autoDetectingChat, setAutoDetectingChat] = useState(false);
 
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedId) ?? null,
     [agents, selectedId]
   );
+
+  const selectedAgentModelProvider = useMemo(() => {
+    const model = selectedAgent?.model?.trim().toLowerCase() ?? "";
+    if (!model) return null;
+    if (model.startsWith("gpt-")) return "openai" as const;
+    if (model.startsWith("claude-")) return "anthropic" as const;
+    return null;
+  }, [selectedAgent?.model]);
+
+  useEffect(() => {
+    if (selectedAgentModelProvider) {
+      setProvider(selectedAgentModelProvider);
+    }
+  }, [selectedAgentModelProvider]);
 
   async function parseJson<T>(response: Response): Promise<T> {
     return (await response.json()) as T;
@@ -96,10 +115,50 @@ export function AgentDashboard({ userId }: { userId: string }) {
     void loadAgents();
   }, []);
 
+  useEffect(() => {
+    try {
+      const savedToken = localStorage.getItem(LS_TELEGRAM_TOKEN_KEY) ?? "";
+      if (savedToken && !telegramBotToken.trim()) {
+        setTelegramBotToken(savedToken);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  async function autoDetectTelegramUser() {
+    const token = telegramBotToken.trim();
+    if (!token) return;
+    setAutoDetectingChat(true);
+    try {
+      const res = await fetch("/api/telegram/resolve-chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      await throwIfNotOk(res);
+      const data = (await parseJson(res)) as { chatId: string; userId: string | null };
+      if (!data.userId) {
+        throw new Error(
+          "Nao encontramos um usuario (from.id). Envie /start para o bot em uma conversa privada e tente novamente.",
+        );
+      }
+      setTelegramUserId(String(data.userId));
+      setTelegramChatId(data.chatId ? String(data.chatId) : "");
+      setLogs("Telegram detectado automaticamente (userId/chatId).");
+    } finally {
+      setAutoDetectingChat(false);
+    }
+  }
+
   async function createAgent() {
     setLoading(true);
     try {
-      const payload: CreateAgentRequest = { name, model, channel: "telegram" };
+      const payload: CreateAgentRequest = {
+        name,
+        model: newAgentModel,
+        channel: "telegram",
+      };
       const response = await fetch("/api/agents", {
         method: "POST",
         headers: { "content-type": "application/json", "x-user-id": userId },
@@ -129,8 +188,31 @@ export function AgentDashboard({ userId }: { userId: string }) {
         body: JSON.stringify(payload)
       });
       await throwIfNotOk(response);
-      await parseJson<DeployAgentResponse>(response);
+      await parseJson<AgentMutationResponse>(response);
       await loadAgents();
+      setLogs("Configuração salva. Rode 'Aplicar Setup (finalize)' para reaplicar no OpenClaw.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function finalizeAgent() {
+    if (!selectedAgent) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/agents/${selectedAgent.id}/finalize`, {
+        method: "POST",
+        headers: { "x-user-id": userId },
+      });
+      await throwIfNotOk(response);
+      await parseJson<AgentMutationResponse>(response);
+      await loadAgents();
+      await readLogs();
+      setLogs((prev) =>
+        prev?.trim()
+          ? `${prev}\n\n[ui] finalize concluído.`
+          : "[ui] finalize concluído.",
+      );
     } finally {
       setLoading(false);
     }
@@ -146,6 +228,15 @@ export function AgentDashboard({ userId }: { userId: string }) {
       });
       await throwIfNotOk(response);
       await parseJson<AgentMutationResponse>(response);
+
+      // Ensure OpenClaw setup runs (Telegram allowlist + provider secret + model, etc.).
+      const finalizeRes = await fetch(`/api/agents/${selectedAgent.id}/finalize`, {
+        method: "POST",
+        headers: { "x-user-id": userId },
+      });
+      await throwIfNotOk(finalizeRes);
+      await parseJson<AgentMutationResponse>(finalizeRes);
+
       await loadAgents();
       await readLogs();
     } finally {
@@ -195,23 +286,43 @@ export function AgentDashboard({ userId }: { userId: string }) {
     }
   }
 
+  async function copySetupPassword() {
+    if (!selectedAgent) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/agents/${selectedAgent.id}/setup-password`, {
+        headers: { "x-user-id": userId },
+      });
+      await throwIfNotOk(response);
+      const data = (await parseJson<{ password: string }>(response)) as {
+        password: string;
+      };
+      await navigator.clipboard.writeText(data.password);
+      setLogs("Setup password copiado para a area de transferencia.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function openControlUi() {
     if (!selectedAgent?.railwayDomain) return;
     setOpeningUi(true);
     try {
-      // OpenClaw Control UI supports a tokenized link: /openclaw?token=...
-      // This avoids the manual "paste gateway token" step.
-      const response = await fetch(`/api/agents/${selectedAgent.id}/gateway-token`, {
+      // Open the Control UI from the gateway host (via /setup) to avoid "origin not allowed".
+      // Also copy the setup password so the user can authenticate quickly.
+      const response = await fetch(`/api/agents/${selectedAgent.id}/setup-password`, {
         headers: { "x-user-id": userId },
       });
       await throwIfNotOk(response);
-      const data = (await parseJson<{ token: string }>(response)) as { token: string };
-      const base = `https://${selectedAgent.railwayDomain}/openclaw`;
-      const url = data.token ? `${base}?token=${encodeURIComponent(data.token)}` : base;
+      const data = (await parseJson<{ password: string }>(response)) as {
+        password: string;
+      };
+      await navigator.clipboard.writeText(data.password);
+      const url = `https://${selectedAgent.railwayDomain}/setup`;
       window.open(url, "_blank", "noopener,noreferrer");
     } catch {
-      const base = `https://${selectedAgent.railwayDomain}/openclaw`;
-      window.open(base, "_blank", "noopener,noreferrer");
+      const url = `https://${selectedAgent.railwayDomain}/setup`;
+      window.open(url, "_blank", "noopener,noreferrer");
     } finally {
       setOpeningUi(false);
     }
@@ -230,12 +341,12 @@ export function AgentDashboard({ userId }: { userId: string }) {
           />
           <select
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
+            value={newAgentModel}
+            onChange={(event) => setNewAgentModel(event.target.value)}
           >
-            {models.map((option) => (
-              <option key={option} value={option}>
-                {option}
+            {MODEL_PRESETS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.value}
               </option>
             ))}
           </select>
@@ -281,9 +392,19 @@ export function AgentDashboard({ userId }: { userId: string }) {
             value={provider}
             onChange={(event) => setProvider(event.target.value as "openai" | "anthropic")}
           >
-            <option value="openai">openai</option>
-            <option value="anthropic">anthropic</option>
+            <option value="openai" disabled={selectedAgentModelProvider === "anthropic"}>
+              openai
+            </option>
+            <option value="anthropic" disabled={selectedAgentModelProvider === "openai"}>
+              anthropic
+            </option>
           </select>
+          <div className="text-xs text-slate-400">
+            Modelo do agente:{" "}
+            <span className="font-mono text-slate-200">
+              {selectedAgent?.model ?? "-"}
+            </span>
+          </div>
           <input
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
             value={apiKey}
@@ -302,6 +423,15 @@ export function AgentDashboard({ userId }: { userId: string }) {
             onChange={(event) => setTelegramUserId(event.target.value)}
             placeholder="Telegram User ID (from.id) - allowlist"
           />
+          <button
+            type="button"
+            onClick={autoDetectTelegramUser}
+            disabled={autoDetectingChat || !telegramBotToken.trim()}
+            className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
+            title="Envia /start para o bot e depois clique aqui"
+          >
+            {autoDetectingChat ? "Detectando..." : "Detectar userId/chatId automaticamente"}
+          </button>
           <input
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
             value={telegramChatId}
@@ -313,7 +443,15 @@ export function AgentDashboard({ userId }: { userId: string }) {
             disabled={!selectedAgent || loading}
             className="w-full rounded-lg border border-cyan-400 px-3 py-2 text-sm text-cyan-300"
           >
-            Configurar Agente (CONFIGURED)
+            Salvar Configuração
+          </button>
+          <button
+            onClick={finalizeAgent}
+            disabled={!selectedAgent || loading}
+            className="w-full rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+            title="Reaplica setup do OpenClaw no serviço já deployado (corrige provider/model sem recriar)."
+          >
+            Aplicar Setup (finalize)
           </button>
         </div>
       </section>
@@ -350,13 +488,21 @@ export function AgentDashboard({ userId }: { userId: string }) {
           >
             Copiar Gateway Token
           </button>
+          <button
+            onClick={copySetupPassword}
+            disabled={!selectedAgent || loading}
+            className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200"
+            title="Necessario para acessar /setup no gateway do Railway"
+          >
+            Copiar Setup Password
+          </button>
           {selectedAgent?.railwayDomain ? (
             <button
               onClick={openControlUi}
               disabled={loading || openingUi}
               className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200"
             >
-              Abrir Control UI
+              Abrir Setup (/setup)
             </button>
           ) : null}
         </div>
