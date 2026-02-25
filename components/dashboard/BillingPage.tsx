@@ -368,7 +368,7 @@ export function BillingPage({ user: _user }: { user: User }) {
 
               <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-slate-600">
                 <Shield className="h-3 w-3" />
-                Pagamento seguro via Mercado Pago
+                Pagamento seguro
               </div>
             </div>
           </div>
@@ -584,7 +584,7 @@ export function BillingPage({ user: _user }: { user: User }) {
 
         <div className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-600">
           <Shield className="h-3 w-3" />
-          Cobranças automáticas gerenciadas pelo Mercado Pago
+          Cobranças automáticas seguras
         </div>
       </div>
     </div>

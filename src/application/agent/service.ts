@@ -44,7 +44,7 @@ export class AgentService {
       const existingAgents = await this.repository.findByUser(input.userId);
       if (existingAgents.length >= subscription.maxAgents) {
         throw new Error(
-          `Limite de agentes atingido (${subscription.maxAgents}). Exclua um agente existente ou faça upgrade do plano.`,
+          `Limite de agentes atingido (${subscription.maxAgents}). Exclua um agente existente e tente novamente.`,
         );
       }
     }
