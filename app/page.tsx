@@ -38,14 +38,14 @@ export default function HomePage() {
     icon: React.ReactNode;
   }> = [
     {
-      value: "claude-opus",
-      label: "Claude Opus 4.5",
-      icon: <AgentIcon agent="claude" />,
-    },
-    {
       value: "gpt-5.2",
       label: "GPT-5.2",
       icon: <AgentIcon agent="gpt" />,
+    },
+    {
+      value: "claude-opus",
+      label: "Claude Opus 4.5",
+      icon: <AgentIcon agent="claude" />,
     },
     {
       value: "gemini-flash",
@@ -67,16 +67,16 @@ export default function HomePage() {
       icon: <ChannelIcon channel="telegram" />,
     },
     {
-      value: "whatsapp",
-      label: "Whatsapp",
-      icon: <ChannelIcon channel="whatsapp" />,
+      value: "discord",
+      label: "Discord",
+      icon: <ChannelIcon channel="discord" />,
       disabled: true,
       badge: "Em breve",
     },
     {
-      value: "discord",
-      label: "Discord",
-      icon: <ChannelIcon channel="discord" />,
+      value: "whatsapp",
+      label: "Whatsapp",
+      icon: <ChannelIcon channel="whatsapp" />,
       disabled: true,
       badge: "Em breve",
     },
@@ -99,7 +99,7 @@ export default function HomePage() {
     {
       title: "Custo inicial",
       tradicional: "Maior custo em horas técnicas e retrabalho",
-      simples: "Menor custo operacional para começar",
+      simples: "Menor custo operacional",
     },
     {
       title: "Complexidade",
@@ -211,12 +211,12 @@ export default function HomePage() {
           </div>
 
           <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
-            Deploy do OpenClaw sem travar em configuração.
+            Faça deploy do <span className="text-cyan-400">OpenClaw</span> sem
+            travar na configuração.
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-300 md:text-base">
             Em vez de gastar tempo com setup manual, infraestrutura e ajustes,
-            você escolhe seu modelo, conecta o canal e segue um fluxo simples
-            para ativar sua assinatura e iniciar o deploy.
+            você escolhe seu modelo, conecta o canal e inicia o deploy.
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3">

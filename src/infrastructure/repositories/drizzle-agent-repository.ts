@@ -9,7 +9,7 @@ import { db } from "@/src/infrastructure/db/client";
 import {
   agentSecretsTable,
   agentsTable,
-  deploymentsTable
+  deploymentsTable,
 } from "@/src/infrastructure/db/schema";
 
 export class DrizzleAgentRepository implements AgentRepository {
@@ -21,7 +21,7 @@ export class DrizzleAgentRepository implements AgentRepository {
         name: input.name,
         model: input.model,
         channel: input.channel,
-        status: "DRAFT"
+        status: "DRAFT",
       })
       .returning();
 
@@ -77,7 +77,9 @@ export class DrizzleAgentRepository implements AgentRepository {
   }
 
   async saveSecret(input: Omit<AgentSecret, "id" | "createdAt">) {
-    await db.delete(agentSecretsTable).where(eq(agentSecretsTable.agentId, input.agentId));
+    await db
+      .delete(agentSecretsTable)
+      .where(eq(agentSecretsTable.agentId, input.agentId));
 
     await db.insert(agentSecretsTable).values({
       agentId: input.agentId,
@@ -111,7 +113,7 @@ export class DrizzleAgentRepository implements AgentRepository {
       telegramUserId: secret.telegramUserId ?? null,
       setupPassword: secret.setupPassword ?? null,
       gatewayToken: secret.gatewayToken ?? null,
-      createdAt: secret.createdAt
+      createdAt: secret.createdAt,
     };
   }
 
@@ -134,13 +136,16 @@ export class DrizzleAgentRepository implements AgentRepository {
     status: "started" | "success" | "failed";
     logs: string | null;
   }) {
-    const [deployment] = await db.insert(deploymentsTable).values(input).returning();
+    const [deployment] = await db
+      .insert(deploymentsTable)
+      .values(input)
+      .returning();
     return {
       id: deployment.id,
       agentId: deployment.agentId,
       status: deployment.status as "started" | "success" | "failed",
       logs: deployment.logs,
-      createdAt: deployment.createdAt
+      createdAt: deployment.createdAt,
     };
   }
 
@@ -158,8 +163,19 @@ export class DrizzleAgentRepository implements AgentRepository {
       agentId: deployment.agentId,
       status: deployment.status as "started" | "success" | "failed",
       logs: deployment.logs,
-      createdAt: deployment.createdAt
+      createdAt: deployment.createdAt,
     };
+  }
+
+  async delete(agentId: string): Promise<void> {
+    // Delete in FK order: deployments → secrets → agent
+    await db
+      .delete(deploymentsTable)
+      .where(eq(deploymentsTable.agentId, agentId));
+    await db
+      .delete(agentSecretsTable)
+      .where(eq(agentSecretsTable.agentId, agentId));
+    await db.delete(agentsTable).where(eq(agentsTable.id, agentId));
   }
 
   private toAgent(agent: typeof agentsTable.$inferSelect) {
@@ -173,7 +189,7 @@ export class DrizzleAgentRepository implements AgentRepository {
       railwayServiceId: agent.railwayServiceId,
       railwayDomain: agent.railwayDomain ?? null,
       createdAt: agent.createdAt,
-      updatedAt: agent.updatedAt
+      updatedAt: agent.updatedAt,
     };
   }
 }

@@ -10,6 +10,8 @@ export interface Plan {
   description: string;
   amount: number; // in BRL (e.g. 49.90)
   currency: string;
+  /** Maximum number of agents a subscriber of this plan can deploy */
+  maxAgents: number;
 }
 
 export const PLANS: Record<string, Plan> = {
@@ -19,6 +21,7 @@ export const PLANS: Record<string, Plan> = {
     description: "Deploy de agentes OpenClaw com integração Telegram",
     amount: 49.9,
     currency: "BRL",
+    maxAgents: 1,
   },
 };
 

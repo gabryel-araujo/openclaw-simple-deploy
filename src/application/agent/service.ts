@@ -6,6 +6,7 @@ import type {
   DeploymentGateway,
   EncryptionService,
 } from "./contracts";
+import type { SubscriptionRepository } from "@/src/infrastructure/repositories/subscription-repository";
 import crypto from "node:crypto";
 
 const PROVIDER_MODEL_PREFIXES = {
@@ -25,9 +26,29 @@ export class AgentService {
     private readonly repository: AgentRepository,
     private readonly deploymentGateway: DeploymentGateway,
     private readonly encryptionService: EncryptionService,
+    private readonly subscriptionRepository?: SubscriptionRepository,
   ) {}
 
   async createAgent(input: CreateAgentInput) {
+    // Enforce subscription-based deploy limit
+    if (this.subscriptionRepository) {
+      const subscription = await this.subscriptionRepository.findByUser(
+        input.userId,
+      );
+      if (!subscription || subscription.status !== "authorized") {
+        throw new Error(
+          "Assinatura inativa. Assine o plano para fazer deploy de agentes.",
+        );
+      }
+
+      const existingAgents = await this.repository.findByUser(input.userId);
+      if (existingAgents.length >= subscription.maxAgents) {
+        throw new Error(
+          `Limite de agentes atingido (${subscription.maxAgents}). Exclua um agente existente ou faça upgrade do plano.`,
+        );
+      }
+    }
+
     return this.repository.create(input);
   }
 
@@ -79,7 +100,10 @@ export class AgentService {
       agent.status === AGENT_STATUS.DRAFT ||
       agent.status === AGENT_STATUS.CONFIGURED
     ) {
-      return this.repository.updateStatus(input.agentId, AGENT_STATUS.CONFIGURED);
+      return this.repository.updateStatus(
+        input.agentId,
+        AGENT_STATUS.CONFIGURED,
+      );
     }
 
     return agent;
@@ -254,6 +278,35 @@ export class AgentService {
     return this.encryptionService.decrypt(secret.setupPassword);
   }
 
+  async stopAllAgents(userId: string) {
+    const agents = await this.repository.findByUser(userId);
+    const running = agents.filter(
+      (a) =>
+        a.status === AGENT_STATUS.RUNNING ||
+        a.status === AGENT_STATUS.DEPLOYING,
+    );
+
+    for (const agent of running) {
+      try {
+        await this.repository.updateStatus(agent.id, AGENT_STATUS.STOPPED);
+      } catch {
+        // best-effort — continue stopping others
+      }
+    }
+  }
+
+  async deleteAgent(userId: string, agentId: string) {
+    const agent = await this.getAgent(userId, agentId);
+
+    // Delete Railway service if it was deployed
+    if (agent.railwayServiceId) {
+      await this.deploymentGateway.deleteService(agent.railwayServiceId);
+    }
+
+    // Cascade delete all DB records (deployments → secrets → agent)
+    await this.repository.delete(agentId);
+  }
+
   private assertProviderSupportsModel(
     provider: "openai" | "anthropic",
     model: string,
@@ -265,7 +318,8 @@ export class AgentService {
 
     const parts = normalizedModel.split("/");
     const providerInRef = parts.length >= 2 ? parts[0] : null;
-    const modelId = parts.length >= 2 ? parts.slice(1).join("/") : normalizedModel;
+    const modelId =
+      parts.length >= 2 ? parts.slice(1).join("/") : normalizedModel;
 
     if (providerInRef && providerInRef !== provider) {
       throw new Error(

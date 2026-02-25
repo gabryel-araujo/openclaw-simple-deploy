@@ -1,14 +1,21 @@
 import { db } from "@/src/infrastructure/db/client";
 import { paymentsTable } from "@/src/infrastructure/db/schema";
+import {
+  getAgentService,
+  getSubscriptionRepository,
+} from "@/src/application/container";
 import { eq } from "drizzle-orm";
-import { MercadoPagoConfig, Payment } from "mercadopago";
+import { MercadoPagoConfig, Payment, PreApproval } from "mercadopago";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
  * POST /api/payment/webhook
  *
  * Receives Mercado Pago IPN/Webhook notifications.
- * Configure this URL in the Mercado Pago developer panel.
+ * Handles both `payment` and `preapproval` event types.
+ *
+ * When a subscription status changes to paused/cancelled,
+ * all the user's agents are stopped automatically.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -21,31 +28,85 @@ export async function POST(req: NextRequest) {
 
     console.log("[payment/webhook] Received notification:", { type, data });
 
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    if (!accessToken) {
+      console.error("[payment/webhook] Missing MERCADO_PAGO_ACCESS_TOKEN");
+      return NextResponse.json({ received: true });
+    }
+
+    const client = new MercadoPagoConfig({ accessToken });
+
+    // ── Handle payment notifications ──
     if (type === "payment") {
       const paymentId = data?.id;
 
-      if (!paymentId) {
-        return NextResponse.json({ received: true });
+      if (paymentId) {
+        const payment = new Payment(client);
+        const result = await payment.get({ id: paymentId });
+
+        if (result?.id && result?.status) {
+          await db
+            .update(paymentsTable)
+            .set({ status: result.status })
+            .where(eq(paymentsTable.transactionId, result.id.toString()));
+        }
+
+        console.log(
+          "[payment/webhook] Payment updated:",
+          paymentId,
+          result?.status,
+        );
       }
+    }
 
-      const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
-      if (!accessToken) {
-        console.error("[payment/webhook] Missing MERCADO_PAGO_ACCESS_TOKEN");
-        return NextResponse.json({ received: true });
+    // ── Handle subscription (preapproval) notifications ──
+    if (type === "preapproval") {
+      const preapprovalId = data?.id;
+
+      if (preapprovalId) {
+        const preApproval = new PreApproval(client);
+        const result = await preApproval.get({ id: preapprovalId });
+
+        if (result?.id && result?.status) {
+          const subRepo = getSubscriptionRepository();
+
+          // Update subscription status in our DB
+          const updatedSub = await subRepo.updateStatus(
+            result.id,
+            result.status,
+            result.next_payment_date
+              ? new Date(result.next_payment_date)
+              : undefined,
+          );
+
+          console.log(
+            "[payment/webhook] Subscription updated:",
+            result.id,
+            result.status,
+          );
+
+          // If subscription is no longer authorized → stop all user's agents
+          if (
+            updatedSub &&
+            result.status !== "authorized" &&
+            result.status !== "pending"
+          ) {
+            try {
+              const agentService = getAgentService();
+              await agentService.stopAllAgents(updatedSub.userId);
+              console.log(
+                "[payment/webhook] Stopped agents for user:",
+                updatedSub.userId,
+              );
+            } catch (stopError) {
+              console.error(
+                "[payment/webhook] Error stopping agents:",
+                stopError,
+              );
+            }
+          }
+        }
       }
-
-      const client = new MercadoPagoConfig({ accessToken });
-      const payment = new Payment(client);
-      const result = await payment.get({ id: paymentId });
-
-      if (result?.id && result?.status) {
-        await db
-          .update(paymentsTable)
-          .set({ status: result.status })
-          .where(eq(paymentsTable.transactionId, result.id.toString()));
-      }
-
-      console.log("[payment/webhook] Payment ID:", paymentId);
     }
 
     return NextResponse.json({ received: true });

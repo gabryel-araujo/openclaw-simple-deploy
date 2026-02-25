@@ -43,6 +43,7 @@ export interface AgentRepository {
     input: Omit<Deployment, "id" | "createdAt">,
   ): Promise<Deployment>;
   getLatestDeployment(agentId: string): Promise<Deployment | null>;
+  delete(agentId: string): Promise<void>;
 }
 
 export interface DeploymentGateway {
@@ -56,7 +57,11 @@ export interface DeploymentGateway {
     telegramChatId?: string | null;
     setupPassword: string;
     gatewayToken: string;
-  }): Promise<{ serviceId: string; logs: string; railwayDomain: string | null }>;
+  }): Promise<{
+    serviceId: string;
+    logs: string;
+    railwayDomain: string | null;
+  }>;
   finalizeSetup(input: {
     serviceId: string;
     railwayDomain: string | null;
@@ -68,6 +73,7 @@ export interface DeploymentGateway {
     telegramUserId: string;
   }): Promise<{ logs: string; railwayDomain: string }>;
   restartAgent(serviceId: string): Promise<void>;
+  deleteService(serviceId: string): Promise<void>;
 }
 
 export interface EncryptionService {

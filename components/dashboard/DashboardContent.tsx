@@ -1,31 +1,87 @@
 "use client";
 
-import { AgentDashboard } from "@/components/agent-dashboard";
+import { ConfigReviewCard } from "@/components/dashboard/ConfigReviewCard";
 import { DeployWizard } from "@/components/dashboard/DeployWizard";
 import { createClient } from "@/src/infrastructure/auth/supabase-client";
+import { ChannelType } from "@/components/ChannelIcon";
 import { User } from "@supabase/supabase-js";
-import {
-  Bot,
-  LogOut,
-  TerminalSquare,
-  User as UserIcon,
-} from "lucide-react";
+import { LogOut, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
-const runbookItems = [
-  "Criar agente (DRAFT) com nome, modelo e canal",
-  "Configurar secrets (provider + Telegram)",
-  "Promover para CONFIGURED",
-  "Executar Deploy 1-Click",
-  "Ler logs e validar status RUNNING",
-  "Testar conversa real no Telegram",
-];
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash";
+
+interface BotInfo {
+  id: number;
+  username: string;
+  name: string;
+}
+
+const LS_MODEL_KEY = "brclaw:selected_model";
+const LS_CHANNEL_KEY = "brclaw:selected_channel";
+const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
+const LS_TELEGRAM_BOT_KEY = "brclaw:telegram_bot";
 
 export function DashboardContent({ user }: { user: User }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [model, setModel] = useState<ModelKey | null>(null);
+  const [channel, setChannel] = useState<ChannelType | null>(null);
+  const [telegramToken, setTelegramToken] = useState<string | null>(null);
+  const [telegramBot, setTelegramBot] = useState<BotInfo | null>(null);
   const router = useRouter();
+
+  // Load persisted selections
+  useEffect(() => {
+    try {
+      const savedModel = localStorage.getItem(LS_MODEL_KEY) as ModelKey | null;
+      const savedChannel = localStorage.getItem(
+        LS_CHANNEL_KEY,
+      ) as ChannelType | null;
+      const savedToken = localStorage.getItem(LS_TELEGRAM_TOKEN_KEY);
+      const savedBot = localStorage.getItem(LS_TELEGRAM_BOT_KEY);
+
+      if (savedModel) setModel(savedModel);
+      if (savedChannel) setChannel(savedChannel);
+      if (savedToken) setTelegramToken(savedToken);
+      if (savedBot) {
+        try {
+          setTelegramBot(JSON.parse(savedBot));
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      /* SSR guard */
+    }
+  }, []);
+
+  const handleConfigChange = (updates: {
+    model?: ModelKey;
+    channel?: ChannelType;
+  }) => {
+    if (updates.model) {
+      setModel(updates.model);
+      localStorage.setItem(LS_MODEL_KEY, updates.model);
+    }
+    if (updates.channel) {
+      setChannel(updates.channel);
+      localStorage.setItem(LS_CHANNEL_KEY, updates.channel);
+    }
+    toast.success("Configurações atualizadas!");
+  };
+
+  const handleBotChange = (
+    token: string,
+    bot: { id: number; username: string; name: string },
+  ) => {
+    setTelegramToken(token);
+    setTelegramBot(bot);
+    localStorage.setItem(LS_TELEGRAM_TOKEN_KEY, token);
+    localStorage.setItem(LS_TELEGRAM_BOT_KEY, JSON.stringify(bot));
+    toast.success(`Bot @${bot.username} configurado!`);
+  };
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -33,49 +89,56 @@ export function DashboardContent({ user }: { user: User }) {
     router.push("/");
   };
 
+  const firstName = user.user_metadata?.full_name?.split(" ")[0] || "Usuário";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
+      {/* ─── Header ─── */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="animate-slideUp">
+          <p className="text-sm text-slate-500">Bem-vindo de volta,</p>
           <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-            Onboarding e Deploy do OpenClaw
+            {firstName} 👋
           </h1>
-          <p className="mt-1 text-slate-400">
-            Painel operacional para criar agente, configurar provider/canal e fazer deploy com logs.
+          <p className="mt-1 text-sm text-slate-400">
+            Gerencie seu agente OpenClaw e faça deploys diretamente daqui.
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-sm font-medium text-cyan-400">
-            <Bot className="h-4 w-4" />
-            Setup OpenClaw
+        <div
+          className="flex items-center gap-3"
+          style={{ animationDelay: "0.1s" }}
+        >
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 animate-slideUp">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Plano ativo
           </span>
 
           <div className="relative">
             <button
-              onClick={() => setIsDropdownOpen((open) => !open)}
-              className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 p-1 pr-3 transition-colors hover:bg-slate-700"
+              onClick={() => setIsDropdownOpen((o) => !o)}
+              className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/80 p-1 pr-3 transition-all hover:bg-slate-700 hover:border-slate-600"
             >
               {user.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
                   alt={user.user_metadata.full_name || "User"}
-                  className="h-8 w-8 rounded-full"
+                  className="h-8 w-8 rounded-full ring-2 ring-slate-700"
                 />
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400">
-                  <span className="font-bold">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 ring-2 ring-cyan-500/30">
+                  <span className="text-sm font-bold">
                     {user.email?.charAt(0).toUpperCase()}
                   </span>
                 </div>
               )}
               <span className="hidden text-sm font-medium text-slate-200 md:block">
-                {user.user_metadata?.full_name?.split(" ")[0] || "Usuário"}
+                {firstName}
               </span>
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-slate-800 bg-slate-900 shadow-lg ring-1 ring-black/20">
+              <div className="absolute right-0 z-50 mt-2 w-56 origin-top-right glass rounded-xl shadow-lg animate-scaleIn">
                 <div className="py-1">
                   <div className="border-b border-slate-800 px-4 py-3">
                     <p className="truncate text-sm font-medium text-white">
@@ -87,14 +150,14 @@ export function DashboardContent({ user }: { user: User }) {
                   </div>
                   <Link
                     href="/dashboard/profile"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/50 hover:text-white transition-colors"
                   >
                     <UserIcon className="h-4 w-4" />
                     Meu Perfil
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
                     Sair
@@ -106,47 +169,23 @@ export function DashboardContent({ user }: { user: User }) {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div className="space-y-6">
-          <DeployWizard user={user} />
+      {/* ─── Config Review ─── */}
+      <ConfigReviewCard
+        model={model}
+        channel={channel}
+        botInfo={telegramBot}
+        onConfigChange={handleConfigChange}
+        onBotChange={handleBotChange}
+      />
 
-          <section className="rounded-2xl border border-cyan-500/15 bg-cyan-500/5 p-4 md:p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <TerminalSquare className="h-4 w-4 text-cyan-300" />
-              <h2 className="text-lg font-semibold text-white">
-                Painel operacional (criação, configuração, deploy e logs)
-              </h2>
-            </div>
-            <p className="mb-4 text-sm text-slate-300">
-              Este bloco já usa suas APIs atuais para criar agente, salvar secrets,
-              disparar deploy, reiniciar e consultar logs.
-            </p>
-            <AgentDashboard userId={user.id} />
-          </section>
-        </div>
-
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-            <h2 className="text-lg font-semibold text-white">Runbook de operação</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Sequência prática para ativar um agente novo sem perder etapas.
-            </p>
-            <ol className="mt-4 space-y-3">
-              {runbookItems.map((item, index) => (
-                <li
-                  key={item}
-                  className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3"
-                >
-                  <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-slate-200">
-                    {index + 1}
-                  </span>
-                  <span className="text-sm text-slate-300">{item}</span>
-                </li>
-              ))}
-            </ol>
-          </section>
-        </div>
-      </div>
+      {/* ─── Deploy Section ─── */}
+      <DeployWizard
+        user={user}
+        model={model}
+        channel={channel}
+        telegramToken={telegramToken}
+        telegramBot={telegramBot}
+      />
     </div>
   );
 }

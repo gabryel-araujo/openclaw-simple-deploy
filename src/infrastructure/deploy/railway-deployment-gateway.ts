@@ -108,7 +108,10 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
         );
         publicDomain = domainRes?.data?.serviceDomainCreate?.domain ?? null;
       } catch (error) {
-        console.warn("[Railway] serviceDomainCreate failed (continuing):", error);
+        console.warn(
+          "[Railway] serviceDomainCreate failed (continuing):",
+          error,
+        );
       }
 
       // 4) Inject Environment Variables
@@ -175,7 +178,10 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
           "serviceInstanceRedeploy",
         );
       } catch (error) {
-        console.warn("[Railway] serviceInstanceRedeploy failed (continuing):", error);
+        console.warn(
+          "[Railway] serviceInstanceRedeploy failed (continuing):",
+          error,
+        );
       }
 
       return {
@@ -295,7 +301,8 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
       );
     }
 
-    const authChoice = input.provider === "openai" ? "openai-api-key" : "apiKey";
+    const authChoice =
+      input.provider === "openai" ? "openai-api-key" : "apiKey";
     const basic = Buffer.from(`:${input.setupPassword}`).toString("base64");
 
     const payload: Record<string, any> = {
@@ -368,7 +375,9 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
         }
         const maybeJson = await res.json().catch(() => null);
         const configured =
-          typeof maybeJson?.configured === "boolean" ? maybeJson.configured : null;
+          typeof maybeJson?.configured === "boolean"
+            ? maybeJson.configured
+            : null;
         if (configured === null || configured === true) {
           break;
         }
@@ -421,6 +430,31 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
         },
       },
     });
+  }
+
+  async deleteService(serviceId: string) {
+    if (!serviceId) {
+      throw new Error("Service ID is required to delete");
+    }
+
+    const apiToken = process.env.RAILWAY_API_TOKEN;
+
+    if (!apiToken || serviceId.startsWith("stub-")) {
+      return; // stub mode – nothing to delete
+    }
+
+    const deleteQuery = `
+      mutation serviceDelete($id: String!) {
+        serviceDelete(id: $id)
+      }
+    `;
+
+    await this.graphqlRequestLabeled(
+      apiToken,
+      deleteQuery,
+      { id: serviceId },
+      "deleteService",
+    );
   }
 
   private async graphqlRequest(token: string, query: string, variables: any) {

@@ -1,4 +1,3 @@
-
 import type { Config } from "drizzle-kit";
 import * as dotenv from "dotenv";
 
@@ -11,5 +10,5 @@ export default {
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-  tablesFilter: ["!libsql_wasm_func_table"],
+  tablesFilter: ["!libsql_wasm_func_table", "!profiles", "!schema_migrations"],
 } satisfies Config;

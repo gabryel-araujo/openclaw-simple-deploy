@@ -1,5 +1,12 @@
 import { sql } from "drizzle-orm";
-import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const agentStatusEnum = pgEnum("agent_status", [
   "DRAFT",
@@ -66,4 +73,20 @@ export const paymentsTable = pgTable("payments", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+});
+
+export const subscriptionsTable = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  mpPreapprovalId: text("mp_preapproval_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  planId: text("plan_id").notNull(),
+  maxAgents: integer("max_agents").notNull().default(1),
+  nextPaymentDate: timestamp("next_payment_date", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
 });

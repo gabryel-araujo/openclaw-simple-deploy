@@ -69,7 +69,7 @@ export function AgentDashboard({ userId }: { userId: string }) {
 
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedId) ?? null,
-    [agents, selectedId]
+    [agents, selectedId],
   );
 
   const selectedAgentModelProvider = useMemo(() => {
@@ -96,7 +96,9 @@ export function AgentDashboard({ userId }: { userId: string }) {
     }
 
     const data = await parseJson<ApiErrorResponse>(response);
-    throw new Error(data.error ?? `Request failed with status ${response.status}`);
+    throw new Error(
+      data.error ?? `Request failed with status ${response.status}`,
+    );
   }
 
   async function loadAgents() {
@@ -137,7 +139,10 @@ export function AgentDashboard({ userId }: { userId: string }) {
         body: JSON.stringify({ token }),
       });
       await throwIfNotOk(res);
-      const data = (await parseJson(res)) as { chatId: string; userId: string | null };
+      const data = (await parseJson(res)) as {
+        chatId: string;
+        userId: string | null;
+      };
       if (!data.userId) {
         throw new Error(
           "Nao encontramos um usuario (from.id). Envie /start para o bot em uma conversa privada e tente novamente.",
@@ -162,7 +167,7 @@ export function AgentDashboard({ userId }: { userId: string }) {
       const response = await fetch("/api/agents", {
         method: "POST",
         headers: { "content-type": "application/json", "x-user-id": userId },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       await throwIfNotOk(response);
       await loadAgents();
@@ -185,12 +190,14 @@ export function AgentDashboard({ userId }: { userId: string }) {
       const response = await fetch(`/api/agents/${selectedAgent.id}/config`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-user-id": userId },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       await throwIfNotOk(response);
       await parseJson<AgentMutationResponse>(response);
       await loadAgents();
-      setLogs("Configuração salva. Rode 'Aplicar Setup (finalize)' para reaplicar no OpenClaw.");
+      setLogs(
+        "Configuração salva. Rode 'Aplicar Setup (finalize)' para reaplicar no OpenClaw.",
+      );
     } finally {
       setLoading(false);
     }
@@ -230,10 +237,13 @@ export function AgentDashboard({ userId }: { userId: string }) {
       await parseJson<AgentMutationResponse>(response);
 
       // Ensure OpenClaw setup runs (Telegram allowlist + provider secret + model, etc.).
-      const finalizeRes = await fetch(`/api/agents/${selectedAgent.id}/finalize`, {
-        method: "POST",
-        headers: { "x-user-id": userId },
-      });
+      const finalizeRes = await fetch(
+        `/api/agents/${selectedAgent.id}/finalize`,
+        {
+          method: "POST",
+          headers: { "x-user-id": userId },
+        },
+      );
       await throwIfNotOk(finalizeRes);
       await parseJson<AgentMutationResponse>(finalizeRes);
 
@@ -274,11 +284,16 @@ export function AgentDashboard({ userId }: { userId: string }) {
     if (!selectedAgent) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/agents/${selectedAgent.id}/gateway-token`, {
-        headers: { "x-user-id": userId },
-      });
+      const response = await fetch(
+        `/api/agents/${selectedAgent.id}/gateway-token`,
+        {
+          headers: { "x-user-id": userId },
+        },
+      );
       await throwIfNotOk(response);
-      const data = (await parseJson<{ token: string }>(response)) as { token: string };
+      const data = (await parseJson<{ token: string }>(response)) as {
+        token: string;
+      };
       await navigator.clipboard.writeText(data.token);
       setLogs("Gateway token copiado para a area de transferencia.");
     } finally {
@@ -290,9 +305,12 @@ export function AgentDashboard({ userId }: { userId: string }) {
     if (!selectedAgent) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/agents/${selectedAgent.id}/setup-password`, {
-        headers: { "x-user-id": userId },
-      });
+      const response = await fetch(
+        `/api/agents/${selectedAgent.id}/setup-password`,
+        {
+          headers: { "x-user-id": userId },
+        },
+      );
       await throwIfNotOk(response);
       const data = (await parseJson<{ password: string }>(response)) as {
         password: string;
@@ -310,9 +328,12 @@ export function AgentDashboard({ userId }: { userId: string }) {
     try {
       // Open the Control UI from the gateway host (via /setup) to avoid "origin not allowed".
       // Also copy the setup password so the user can authenticate quickly.
-      const response = await fetch(`/api/agents/${selectedAgent.id}/setup-password`, {
-        headers: { "x-user-id": userId },
-      });
+      const response = await fetch(
+        `/api/agents/${selectedAgent.id}/setup-password`,
+        {
+          headers: { "x-user-id": userId },
+        },
+      );
       await throwIfNotOk(response);
       const data = (await parseJson<{ password: string }>(response)) as {
         password: string;
@@ -342,7 +363,11 @@ export function AgentDashboard({ userId }: { userId: string }) {
           <select
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
             value={newAgentModel}
-            onChange={(event) => setNewAgentModel(event.target.value)}
+            onChange={(event) =>
+              setNewAgentModel(
+                event.target.value as (typeof MODEL_PRESETS)[number]["value"],
+              )
+            }
           >
             {MODEL_PRESETS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -362,7 +387,9 @@ export function AgentDashboard({ userId }: { userId: string }) {
 
       <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
         <h2 className="text-lg font-semibold">Agentes</h2>
-        <p className="mt-1 text-xs text-slate-400">Limited cloud servers — only 7 left!</p>
+        <p className="mt-1 text-xs text-slate-400">
+          Limited cloud servers — only 7 left!
+        </p>
         <div className="mt-4 space-y-2">
           {agents.map((agent) => (
             <button
@@ -385,17 +412,27 @@ export function AgentDashboard({ userId }: { userId: string }) {
       </section>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-        <h2 className="text-lg font-semibold">Configuração (Telegram + API Key)</h2>
+        <h2 className="text-lg font-semibold">
+          Configuração (Telegram + API Key)
+        </h2>
         <div className="mt-4 space-y-3">
           <select
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
             value={provider}
-            onChange={(event) => setProvider(event.target.value as "openai" | "anthropic")}
+            onChange={(event) =>
+              setProvider(event.target.value as "openai" | "anthropic")
+            }
           >
-            <option value="openai" disabled={selectedAgentModelProvider === "anthropic"}>
+            <option
+              value="openai"
+              disabled={selectedAgentModelProvider === "anthropic"}
+            >
               openai
             </option>
-            <option value="anthropic" disabled={selectedAgentModelProvider === "openai"}>
+            <option
+              value="anthropic"
+              disabled={selectedAgentModelProvider === "openai"}
+            >
               anthropic
             </option>
           </select>
@@ -430,7 +467,9 @@ export function AgentDashboard({ userId }: { userId: string }) {
             className="w-full rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
             title="Envia /start para o bot e depois clique aqui"
           >
-            {autoDetectingChat ? "Detectando..." : "Detectar userId/chatId automaticamente"}
+            {autoDetectingChat
+              ? "Detectando..."
+              : "Detectar userId/chatId automaticamente"}
           </button>
           <input
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
