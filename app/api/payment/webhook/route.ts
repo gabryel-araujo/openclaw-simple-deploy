@@ -45,17 +45,63 @@ export async function POST(req: NextRequest) {
         const result = await payment.get({ id: paymentId });
 
         if (result?.id && result?.status) {
-          await db
-            .update(paymentsTable)
-            .set({ status: result.status })
-            .where(eq(paymentsTable.transactionId, result.id.toString()));
-        }
+          const transactionId = result.id.toString();
 
-        console.log(
-          "[payment/webhook] Payment updated:",
-          paymentId,
-          result?.status,
-        );
+          // Try to update first; if no row was affected, insert (upsert)
+          // This covers recurring subscription payments that were never inserted by the /process route
+          const existing = await db
+            .select({ id: paymentsTable.id })
+            .from(paymentsTable)
+            .where(eq(paymentsTable.transactionId, transactionId))
+            .limit(1);
+
+          if (existing.length > 0) {
+            await db
+              .update(paymentsTable)
+              .set({ status: result.status })
+              .where(eq(paymentsTable.transactionId, transactionId));
+            console.log(
+              "[payment/webhook] Payment updated:",
+              transactionId,
+              result.status,
+            );
+          } else {
+            // Recurring payment not previously in our DB — look up subscription to get userId
+            const subRepo = getSubscriptionRepository();
+            const preapprovalId =
+              (result as any).preapproval_id ??
+              (result as any).point_of_interaction?.subscription_data
+                ?.preapproval_id;
+
+            let userId: string | null = null;
+            if (preapprovalId) {
+              const sub = await subRepo.findByPreapprovalId(preapprovalId);
+              userId = sub?.userId ?? null;
+            }
+
+            if (userId) {
+              await db.insert(paymentsTable).values({
+                userId,
+                transactionId,
+                status: result.status,
+                amount: result.transaction_amount?.toString() ?? "0",
+                planId: "pro-monthly",
+              });
+              console.log(
+                "[payment/webhook] Payment inserted (recurring):",
+                transactionId,
+                result.status,
+                "userId:",
+                userId,
+              );
+            } else {
+              console.warn(
+                "[payment/webhook] Could not determine userId for payment:",
+                transactionId,
+              );
+            }
+          }
+        }
       }
     }
 

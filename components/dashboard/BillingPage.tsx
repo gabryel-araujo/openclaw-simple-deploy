@@ -2,11 +2,14 @@
 
 import { User } from "@supabase/supabase-js";
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle2,
+  Clock,
   CreditCard,
   Loader2,
   Receipt,
+  RefreshCw,
   Shield,
   Sparkles,
   Star,
@@ -14,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useSubscription } from "./SubscriptionContext";
 
 interface SubscriptionData {
   id: string;
@@ -26,7 +30,22 @@ interface SubscriptionData {
 
 interface SubscriptionResponse {
   active: boolean;
+  validUntil: string | null;
   subscription: SubscriptionData | null;
+}
+
+interface PaymentRecord {
+  id: string;
+  transactionId: string;
+  status: string;
+  amount: string;
+  planId: string;
+  createdAt: string;
+  validUntil: string;
+}
+
+interface PaymentHistoryResponse {
+  payments: PaymentRecord[];
 }
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -48,6 +67,37 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   },
 };
 
+const PAYMENT_STATUS_LABELS: Record<
+  string,
+  { label: string; className: string; icon: React.ElementType }
+> = {
+  approved: {
+    label: "Aprovado",
+    className: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+    icon: CheckCircle2,
+  },
+  pending: {
+    label: "Pendente",
+    className: "text-amber-400 bg-amber-400/10 border-amber-400/20",
+    icon: Clock,
+  },
+  rejected: {
+    label: "Recusado",
+    className: "text-red-400 bg-red-400/10 border-red-400/20",
+    icon: XCircle,
+  },
+  cancelled: {
+    label: "Cancelado",
+    className: "text-red-400 bg-red-400/10 border-red-400/20",
+    icon: XCircle,
+  },
+  refunded: {
+    label: "Reembolsado",
+    className: "text-slate-400 bg-slate-400/10 border-slate-400/20",
+    icon: RefreshCw,
+  },
+};
+
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("pt-BR", {
@@ -57,10 +107,55 @@ function formatDate(iso: string | null): string {
   });
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatCurrency(amount: string): string {
+  const num = parseFloat(amount);
+  return isNaN(num)
+    ? amount
+    : num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function ValidityBadge({ validUntil }: { validUntil: string }) {
+  const expiry = new Date(validUntil);
+  const now = new Date();
+  const isValid = now < expiry;
+  const daysLeft = Math.ceil(
+    (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (isValid) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+        <CheckCircle2 className="h-3 w-3" />
+        Válido · {daysLeft}d restantes
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-400">
+      <XCircle className="h-3 w-3" />
+      Expirado
+    </span>
+  );
+}
+
 export function BillingPage({ user: _user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [subData, setSubData] = useState<SubscriptionResponse | null>(null);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const { refresh: refreshSubscription } = useSubscription();
 
   const loadSubscription = useCallback(async () => {
     try {
@@ -75,9 +170,24 @@ export function BillingPage({ user: _user }: { user: User }) {
     }
   }, []);
 
+  const loadHistory = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+      const res = await fetch("/api/payment/history");
+      if (!res.ok) throw new Error("Erro ao buscar histórico");
+      const data = (await res.json()) as PaymentHistoryResponse;
+      setPayments(data.payments ?? []);
+    } catch {
+      // silently fail – not critical
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadSubscription();
-  }, [loadSubscription]);
+    void loadHistory();
+  }, [loadSubscription, loadHistory]);
 
   async function handleSubscribe() {
     setSubscribing(true);
@@ -106,6 +216,13 @@ export function BillingPage({ user: _user }: { user: User }) {
     }
   }
 
+  async function handleRefresh() {
+    setLoading(true);
+    setHistoryLoading(true);
+    await Promise.all([loadSubscription(), loadHistory(), refreshSubscription()]);
+    toast.success("Dados atualizados!");
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -116,18 +233,90 @@ export function BillingPage({ user: _user }: { user: User }) {
 
   const sub = subData?.subscription;
   const isActive = subData?.active ?? false;
+  const validUntil = subData?.validUntil ?? null;
   const statusInfo = STATUS_LABELS[sub?.status ?? ""] ?? STATUS_LABELS.pending;
 
   return (
     <div className="space-y-6 animate-slideUp">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-          Cobrança
-        </h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Gerencie sua assinatura e acompanhe seus pagamentos.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
+            Cobrança
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Gerencie sua assinatura e acompanhe seus pagamentos.
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          title="Atualizar dados"
+          className="flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-800/50 px-3 py-2 text-xs text-slate-400 transition hover:bg-slate-700/60 hover:text-white"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Atualizar
+        </button>
+      </div>
+
+      {/* ─── Subscription Validity Card ─── */}
+      <div
+        className={`relative overflow-hidden rounded-2xl border p-5 ${
+          isActive
+            ? "border-emerald-500/20 bg-emerald-500/5"
+            : "border-amber-500/20 bg-amber-500/5"
+        }`}
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span
+              className={`rounded-xl p-2.5 ring-1 ${isActive ? "bg-emerald-500/15 ring-emerald-500/20 text-emerald-400" : "bg-amber-500/15 ring-amber-500/20 text-amber-400"}`}
+            >
+              {isActive ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <AlertTriangle className="h-5 w-5" />
+              )}
+            </span>
+            <div>
+              <h2
+                className={`text-base font-semibold ${isActive ? "text-emerald-300" : "text-amber-300"}`}
+              >
+                {isActive ? "Assinatura válida" : "Assinatura inválida"}
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-400">
+                {isActive
+                  ? "Seu plano está ativo e dentro do período de 30 dias."
+                  : "Não há um pagamento aprovado dentro dos últimos 30 dias."}
+              </p>
+            </div>
+          </div>
+
+          {/* Validity details */}
+          <div className="flex flex-col gap-2 rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-3 text-sm min-w-[200px]">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-slate-500 text-xs">Acesso válido até</span>
+              <span className="font-medium text-white text-xs">
+                {validUntil ? formatDate(validUntil) : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-slate-500 text-xs">Status</span>
+              <span
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusInfo.className}`}
+              >
+                {sub ? statusInfo.label : "Sem assinatura"}
+              </span>
+            </div>
+            {sub && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-500 text-xs">Próxima cobrança</span>
+                <span className="font-medium text-white text-xs">
+                  {formatDate(sub.nextPaymentDate)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ─── No Subscription State ─── */}
@@ -186,7 +375,7 @@ export function BillingPage({ user: _user }: { user: User }) {
         </div>
       )}
 
-      {/* ─── Active Subscription ─── */}
+      {/* ─── Active Subscription Card ─── */}
       {sub && (
         <>
           {/* Inactive subscription banner */}
@@ -276,54 +465,6 @@ export function BillingPage({ user: _user }: { user: User }) {
             </div>
           </div>
 
-          {/* Subscription details */}
-          <div className="glass rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Receipt className="h-4 w-4 text-cyan-400" />
-              <h3 className="text-lg font-semibold text-white">
-                Detalhes da assinatura
-              </h3>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-950/30 px-4 py-3">
-                <span className="text-sm text-slate-400">Status</span>
-                <span
-                  className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusInfo.className}`}
-                >
-                  {statusInfo.label}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-950/30 px-4 py-3">
-                <span className="text-sm text-slate-400">
-                  Limite de agentes
-                </span>
-                <span className="text-sm font-medium text-white">
-                  {sub.maxAgents}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-950/30 px-4 py-3">
-                <span className="text-sm text-slate-400">Próxima cobrança</span>
-                <span className="text-sm font-medium text-white">
-                  {formatDate(sub.nextPaymentDate)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-950/30 px-4 py-3">
-                <span className="text-sm text-slate-400">
-                  Meio de pagamento
-                </span>
-                <span className="text-sm font-medium text-slate-300">
-                  Mercado Pago (recorrente)
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-600">
-              <Shield className="h-3 w-3" />
-              Cobranças automáticas gerenciadas pelo Mercado Pago
-            </div>
-          </div>
-
           {/* ─── Cancel / Danger Zone ─── */}
           {isActive && (
             <div className="rounded-2xl border border-red-500/10 bg-red-500/5 p-6">
@@ -358,6 +499,94 @@ export function BillingPage({ user: _user }: { user: User }) {
           )}
         </>
       )}
+
+      {/* ─── Payment History ─── */}
+      <div className="glass rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-cyan-400" />
+            <h3 className="text-lg font-semibold text-white">
+              Histórico de pagamentos
+            </h3>
+          </div>
+          {payments.length > 0 && (
+            <span className="text-xs text-slate-500">
+              Últimos {payments.length} pagamentos
+            </span>
+          )}
+        </div>
+
+        {historyLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-cyan-400/60" />
+          </div>
+        ) : payments.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <Receipt className="h-8 w-8 text-slate-700" />
+            <p className="text-sm text-slate-500">
+              Nenhum pagamento registrado ainda.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {payments.map((payment) => {
+              const ps =
+                PAYMENT_STATUS_LABELS[payment.status] ??
+                PAYMENT_STATUS_LABELS.pending;
+              const Icon = ps.icon;
+              const isApproved = payment.status === "approved";
+
+              return (
+                <div
+                  key={payment.id}
+                  className="flex flex-col gap-3 rounded-xl border border-slate-800/60 bg-slate-950/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  {/* Left: icon + dates */}
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`mt-0.5 rounded-full border p-1.5 ${ps.className}`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {formatCurrency(payment.amount)} · Plano Pro
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Pago em {formatDateTime(payment.createdAt)}
+                      </p>
+                      {isApproved && (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+                          <Clock className="h-3 w-3" />
+                          Período: {formatDate(payment.createdAt)} →{" "}
+                          {formatDate(payment.validUntil)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: status + validity badge */}
+                  <div className="flex items-center gap-2 pl-9 sm:pl-0">
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${ps.className}`}
+                    >
+                      {ps.label}
+                    </span>
+                    {isApproved && (
+                      <ValidityBadge validUntil={payment.validUntil} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-600">
+          <Shield className="h-3 w-3" />
+          Cobranças automáticas gerenciadas pelo Mercado Pago
+        </div>
+      </div>
     </div>
   );
 }

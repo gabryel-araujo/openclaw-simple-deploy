@@ -1,6 +1,7 @@
 import { db } from "@/src/infrastructure/db/client";
 import { paymentsTable } from "@/src/infrastructure/db/schema";
 import { getPlanById } from "@/src/domain/payment/plans";
+import { getSubscriptionRepository } from "@/src/application/container";
 import { createClient as createSupabaseServerClient } from "@/src/infrastructure/auth/supabase";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { NextRequest, NextResponse } from "next/server";
@@ -108,6 +109,47 @@ export async function POST(req: NextRequest) {
         "[payment/process] DB insert failed (non-blocking):",
         dbError,
       );
+    }
+
+    // When approved, create or update the subscription record so the
+    // subscription validity check recognises this user as subscribed.
+    if (result.status === "approved") {
+      try {
+        const subRepo = getSubscriptionRepository();
+        const existing = await subRepo.findByUser(user.id);
+
+        // Use a stable synthetic ID for transparent-checkout subscriptions
+        const syntheticPreapprovalId = `transparent-${user.id}-${plan.id}`;
+
+        const nextPaymentDate = new Date();
+        nextPaymentDate.setDate(nextPaymentDate.getDate() + 30);
+
+        if (existing && existing.mpPreapprovalId === syntheticPreapprovalId) {
+          // Renew the existing subscription
+          await subRepo.updateStatus(
+            syntheticPreapprovalId,
+            "authorized",
+            nextPaymentDate,
+          );
+        } else if (!existing) {
+          // Create brand-new subscription
+          await subRepo.create({
+            userId: user.id,
+            mpPreapprovalId: syntheticPreapprovalId,
+            status: "authorized",
+            planId: plan.id,
+            maxAgents: 1,
+            nextPaymentDate,
+          });
+        }
+        // If existing subscription has a different (real) preapprovalId, leave it alone —
+        // it's managed by the preapproval webhook.
+      } catch (subError) {
+        console.error(
+          "[payment/process] Subscription upsert failed (non-blocking):",
+          subError,
+        );
+      }
     }
 
     // Build response

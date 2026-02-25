@@ -2,6 +2,7 @@
 
 import { ConfigReviewCard } from "@/components/dashboard/ConfigReviewCard";
 import { DeployWizard } from "@/components/dashboard/DeployWizard";
+import { useSubscription } from "@/components/dashboard/SubscriptionContext";
 import { createClient } from "@/src/infrastructure/auth/supabase-client";
 import { ChannelType } from "@/components/ChannelIcon";
 import { User } from "@supabase/supabase-js";
@@ -31,6 +32,8 @@ export function DashboardContent({ user }: { user: User }) {
   const [telegramToken, setTelegramToken] = useState<string | null>(null);
   const [telegramBot, setTelegramBot] = useState<BotInfo | null>(null);
   const router = useRouter();
+  const { isActive, loading: subLoading } = useSubscription();
+
 
   // Load persisted selections
   useEffect(() => {
@@ -109,10 +112,20 @@ export function DashboardContent({ user }: { user: User }) {
           className="flex items-center gap-3"
           style={{ animationDelay: "0.1s" }}
         >
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 animate-slideUp">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Plano ativo
-          </span>
+          {!subLoading && (
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium animate-slideUp ${
+                isActive
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                  : "border-red-500/20 bg-red-500/10 text-red-400"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full animate-pulse ${isActive ? "bg-emerald-400" : "bg-red-400"}`}
+              />
+              {isActive ? "Plano ativo" : "Sem assinatura"}
+            </span>
+          )}
 
           <div className="relative">
             <button
