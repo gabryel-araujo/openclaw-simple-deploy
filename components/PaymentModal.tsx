@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, DollarSign, Loader2, ShieldCheck, X } from "lucide-react";
+import { CheckIcon, DollarSign, Loader2, ShieldCheck, X, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -19,6 +19,77 @@ type Step = "plan" | "form";
 type PaymentMethod = "card" | "pix";
 type PaymentStatus = "idle" | "loading" | "success" | "error";
 type PostPaymentDialog = "approved" | "in_process" | null;
+
+// ─── Friendly rejection messages ───────────────────────────────────────────
+const REJECTION_MESSAGES: Record<string, { title: string; hint: string }> = {
+  cc_rejected_bad_filled_card_number: {
+    title: "Número do cartão inválido",
+    hint: "Verifique o número do cartão e tente novamente.",
+  },
+  cc_rejected_bad_filled_date: {
+    title: "Data de validade incorreta",
+    hint: "Confira o mês e ano de validade do cartão.",
+  },
+  cc_rejected_bad_filled_other: {
+    title: "Dados do cartão incorretos",
+    hint: "Verifique todas as informações do cartão e tente novamente.",
+  },
+  cc_rejected_bad_filled_security_code: {
+    title: "CVV incorreto",
+    hint: "O código de segurança (CVV) está incorreto.",
+  },
+  cc_rejected_blacklist: {
+    title: "Cartão com restrição",
+    hint: "Este cartão não pode ser utilizado. Tente outro cartão.",
+  },
+  cc_rejected_call_for_authorize: {
+    title: "Autorização necessária",
+    hint: "Ligue para o banco para autorizar o pagamento e tente novamente.",
+  },
+  cc_rejected_card_disabled: {
+    title: "Cartão desativado",
+    hint: "Seu cartão está bloqueado para compras online. Entre em contato com o banco.",
+  },
+  cc_rejected_card_error: {
+    title: "Erro no cartão",
+    hint: "Não conseguimos processar seu cartão. Tente novamente ou use outro cartão.",
+  },
+  cc_rejected_duplicated_payment: {
+    title: "Pagamento duplicado",
+    hint: "Já existe um pagamento idêntico recente. Aguarde alguns minutos antes de tentar novamente.",
+  },
+  cc_rejected_high_risk: {
+    title: "Pagamento recusado por segurança",
+    hint: "Por motivos de segurança, o pagamento foi recusado. Tente outro cartão.",
+  },
+  cc_rejected_insufficient_amount: {
+    title: "Saldo insuficiente",
+    hint: "Seu cartão não tem limite disponível suficiente.",
+  },
+  cc_rejected_invalid_installments: {
+    title: "Parcelamento inválido",
+    hint: "O número de parcelas não é aceito para este cartão.",
+  },
+  cc_rejected_max_attempts: {
+    title: "Muitas tentativas",
+    hint: "Você excedeu o número de tentativas. Aguarde antes de tentar novamente.",
+  },
+  cc_rejected_other_reason: {
+    title: "Pagamento recusado",
+    hint: "O banco recusou o pagamento. Entre em contato com o banco ou use outro cartão.",
+  },
+};
+
+function getRejectionInfo(errorMessage: string): { title: string; hint: string } {
+  for (const [code, info] of Object.entries(REJECTION_MESSAGES)) {
+    if (errorMessage.includes(code)) return info;
+  }
+  return {
+    title: "Pagamento recusado",
+    hint: errorMessage || "Verifique os dados e tente novamente, ou use outro cartão.",
+  };
+}
+
 
 interface PixData {
   qrCode: string;
@@ -50,14 +121,16 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
   // Payment form
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [status, setStatus] = useState<PaymentStatus>("idle");
-  const [error, setError] = useState<string | null>(null);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [pixCopied, setPixCopied] = useState(false);
   const [postPaymentDialog, setPostPaymentDialog] =
     useState<PostPaymentDialog>(null);
-  const [postPaymentMessage, setPostPaymentMessage] = useState<string | null>(
-    null,
-  );
+
+  // Rejection modal
+  const [rejectionModal, setRejectionModal] = useState<{
+    title: string;
+    hint: string;
+  } | null>(null);
 
   // Card fields
   const [cardNumber, setCardNumber] = useState("");
@@ -148,7 +221,6 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
   // ─── Card payment ───
   const handleCardPayment = useCallback(async () => {
     setStatus("loading");
-    setError(null);
 
     try {
       const mp = mpRef.current;
@@ -193,24 +265,19 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
 
       if (data.status === "approved") {
         setStatus("success");
-        setError(null);
-        setPostPaymentMessage(null);
         setPostPaymentDialog("approved");
       } else if (data.status === "in_process") {
         setStatus("success");
-        setError(null);
-        setPostPaymentMessage(
-          "Pagamento em processamento. Aguarde a confirmação para prosseguir com o deploy.",
-        );
         setPostPaymentDialog("in_process");
       } else {
         throw new Error(
-          data.detail || `Pagamento ${data.status}. Tente novamente.`,
+          data.detail || data.status_detail || `Pagamento recusado (${data.status}).`,
         );
       }
     } catch (err: any) {
-      setStatus("error");
-      setError(err.message || "Erro desconhecido.");
+      setStatus("idle");
+      const msg = err.message || "Erro desconhecido.";
+      setRejectionModal(getRejectionInfo(msg));
     }
   }, [
     cardNumber,
@@ -227,7 +294,6 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
   // ─── Pix payment ───
   const handlePixPayment = useCallback(async () => {
     setStatus("loading");
-    setError(null);
     setPixData(null);
     setPostPaymentDialog(null);
 
@@ -263,8 +329,8 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
         throw new Error("QR Code Pix não disponível.");
       }
     } catch (err: any) {
-      setStatus("error");
-      setError(err.message || "Erro ao gerar Pix.");
+      setStatus("idle");
+      setRejectionModal(getRejectionInfo(err.message || "Erro ao gerar Pix."));
     }
   }, [planId, cardEmail, cardDocType, cardDocNumber]);
 
@@ -376,7 +442,6 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
               onClick={() => {
                 setStep("plan");
                 setStatus("idle");
-                setError(null);
                 setPixData(null);
               }}
               className="text-xs text-slate-500 hover:text-white mb-4 flex items-center gap-1 transition"
@@ -391,7 +456,6 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                   setMethod("card");
                   setPixData(null);
                   setStatus("idle");
-                  setError(null);
                 }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
                   method === "card"
@@ -405,7 +469,6 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                 onClick={() => {
                   setMethod("pix");
                   setStatus("idle");
-                  setError(null);
                 }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
                   method === "pix"
@@ -639,63 +702,61 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
               </div>
             )}
 
-            {/* Error */}
-            {status === "error" && error && (
-              <div className="mt-4 rounded-lg bg-red-900/30 border border-red-800 p-3 text-sm text-red-300">
-                {error}
-              </div>
-            )}
-
-            {/* Success */}
-            {status === "success" && (
-              <div className="mt-4 rounded-lg bg-emerald-900/30 border border-emerald-800 p-3 text-sm text-emerald-300">
-                {postPaymentMessage || "Pagamento aprovado!"}
-              </div>
-            )}
           </div>
         )}
 
+        {/* ═══════════ SUCCESS overlay ═══════════ */}
         {postPaymentDialog && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md rounded-2xl">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-700/60 bg-slate-900 p-6 shadow-2xl">
               {postPaymentDialog === "approved" ? (
                 <>
-                  <h3 className="text-lg font-semibold text-white">
-                    Pagamento aprovado
+                  {/* Success icon */}
+                  <div className="flex justify-center mb-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 ring-4 ring-emerald-500/10">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-center text-lg font-bold text-white">
+                    Pagamento aprovado!
                   </h3>
-                  <p className="mt-2 text-sm text-slate-300">
-                    Sua assinatura foi confirmada. Deseja prosseguir para o deploy agora?
+                  <p className="mt-2 text-center text-sm text-slate-400">
+                    Sua assinatura está ativa. Deseja ir para o dashboard e fazer o deploy agora?
                   </p>
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-5 flex gap-2">
                     <button
-                      onClick={() => setPostPaymentDialog(null)}
+                      onClick={onClose}
                       className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
                     >
-                      Ficar aqui
+                      Fechar
                     </button>
                     <button
                       onClick={() => router.push("/dashboard?payment=success")}
                       className="flex-1 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-cyan-300"
                     >
-                      Prosseguir deploy
+                      Ir ao dashboard
                     </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <h3 className="text-lg font-semibold text-white">
-                    Pagamento em processamento
+                  <div className="flex justify-center mb-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15 ring-4 ring-amber-500/10">
+                      <CheckCircle2 className="h-8 w-8 text-amber-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-center text-lg font-bold text-white">
+                    Pagamento em análise
                   </h3>
-                  <p className="mt-2 text-sm text-slate-300">
-                    Recebemos seu pagamento, mas ele ainda está em análise/aprovação.
-                    Aguarde a confirmação antes de prosseguir com o deploy.
+                  <p className="mt-2 text-center text-sm text-slate-400">
+                    Recebemos seu pagamento. A confirmação pode levar alguns minutos — você será notificado assim que for aprovado.
                   </p>
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-5 flex gap-2">
                     <button
-                      onClick={() => setPostPaymentDialog(null)}
+                      onClick={onClose}
                       className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
                     >
-                      Entendi
+                      Fechar
                     </button>
                     <button
                       onClick={() => router.push("/dashboard?payment=pending")}
@@ -706,6 +767,42 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ REJECTION modal ═══════════ */}
+        {rejectionModal && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm rounded-2xl">
+            <div className="w-full max-w-sm rounded-2xl border border-red-500/20 bg-slate-900 p-6 shadow-2xl">
+              {/* Icon */}
+              <div className="flex justify-center mb-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 ring-4 ring-red-500/10">
+                  <AlertTriangle className="h-8 w-8 text-red-400" />
+                </div>
+              </div>
+
+              <h3 className="text-center text-lg font-bold text-white">
+                {rejectionModal.title}
+              </h3>
+              <p className="mt-2 text-center text-sm text-slate-400">
+                {rejectionModal.hint}
+              </p>
+
+              <div className="mt-5 flex gap-2">
+                <button
+                  onClick={() => setRejectionModal(null)}
+                  className="flex-1 rounded-xl bg-slate-800 border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
+                >
+                  Tentar novamente
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-400 transition hover:text-white"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         )}
