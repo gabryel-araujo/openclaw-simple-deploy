@@ -130,6 +130,22 @@ export function AgentListPage({
     }
   }
 
+  async function copyPassword(id: string) {
+    setAgentLoading(id, true);
+    try {
+      const data = await apiFetch<{ password: string }>(
+        `/api/agents/${id}/setup-password`,
+        { headers },
+      );
+      await navigator.clipboard.writeText(data.password);
+      toast.success("Senha copiada!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao copiar senha.");
+    } finally {
+      setAgentLoading(id, false);
+    }
+  }
+
   async function copyGatewayToken(id: string) {
     setAgentLoading(id, true);
     try {
@@ -146,9 +162,9 @@ export function AgentListPage({
     }
   }
 
-  function openAgentUI(agent: AgentListItem) {
+  function openAgentSetup(agent: AgentListItem) {
     if (agent.railwayDomain) {
-      window.open(`https://${agent.railwayDomain}`, "_blank");
+      window.open(`https://${agent.railwayDomain}/setup`, "_blank");
     } else {
       toast.error("Domínio não disponível para este agente.");
     }
@@ -311,12 +327,12 @@ export function AgentListPage({
                   )}
                 </button>
                 <button
-                  onClick={() => openAgentUI(agent)}
+                  onClick={() => openAgentSetup(agent)}
                   disabled={!agent.railwayDomain}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Abrir UI
+                  Abrir Setup
                 </button>
                 <button
                   onClick={() => copyGatewayToken(agent.id)}
@@ -325,6 +341,14 @@ export function AgentListPage({
                 >
                   <Key className="h-3.5 w-3.5" />
                   Gateway Token
+                </button>
+                <button
+                  onClick={() => copyPassword(agent.id)}
+                  disabled={isLoading || readOnly}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white disabled:opacity-50"
+                >
+                  <Clipboard className="h-3.5 w-3.5" />
+                  Copiar Senha
                 </button>
 
                 {/* Destructive delete */}
