@@ -35,7 +35,7 @@ interface CreateAgentRequest {
 }
 
 interface ConfigureAgentRequest {
-  provider: "openai" | "anthropic";
+  provider: string;
   apiKey: string;
   telegramBotToken: string;
   telegramUserId: string;
@@ -57,7 +57,7 @@ export function AgentDashboard({ userId }: { userId: string }) {
   const [newAgentModel, setNewAgentModel] = useState<
     (typeof MODEL_PRESETS)[number]["value"]
   >(MODEL_PRESETS[0].value);
-  const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
+  const [provider, setProvider] = useState<string>("openai");
   const [apiKey, setApiKey] = useState("");
   const [telegramBotToken, setTelegramBotToken] = useState("");
   const [telegramUserId, setTelegramUserId] = useState("");
@@ -77,6 +77,8 @@ export function AgentDashboard({ userId }: { userId: string }) {
     if (!model) return null;
     if (model.startsWith("gpt-")) return "openai" as const;
     if (model.startsWith("claude-")) return "anthropic" as const;
+    if (model.startsWith("gemini-")) return "google" as const;
+    if (model.startsWith("llama-")) return "venice" as const;
     return null;
   }, [selectedAgent?.model]);
 
@@ -419,22 +421,12 @@ export function AgentDashboard({ userId }: { userId: string }) {
           <select
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
             value={provider}
-            onChange={(event) =>
-              setProvider(event.target.value as "openai" | "anthropic")
-            }
+            onChange={(event) => setProvider(event.target.value)}
           >
-            <option
-              value="openai"
-              disabled={selectedAgentModelProvider === "anthropic"}
-            >
-              openai
-            </option>
-            <option
-              value="anthropic"
-              disabled={selectedAgentModelProvider === "openai"}
-            >
-              anthropic
-            </option>
+            <option value="openai">openai</option>
+            <option value="anthropic">anthropic</option>
+            <option value="google">google</option>
+            <option value="venice">venice</option>
           </select>
           <div className="text-xs text-slate-400">
             Modelo do agente:{" "}

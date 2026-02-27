@@ -10,11 +10,13 @@ import type { SubscriptionRepository } from "@/src/infrastructure/repositories/s
 import crypto from "node:crypto";
 
 const PROVIDER_MODEL_PREFIXES = {
-  openai: ["gpt-"],
+  openai: ["gpt-", "o1-", "o3-"],
   anthropic: ["claude-"],
+  google: ["gemini-"],
+  venice: ["llama-", "claude-"],
 } as const;
 
-function toOpenClawModelRef(provider: "openai" | "anthropic", model: string) {
+function toOpenClawModelRef(provider: string, model: string) {
   const normalized = model.trim().toLowerCase();
   if (!normalized) return normalized;
   if (normalized.includes("/")) return normalized;
@@ -307,10 +309,7 @@ export class AgentService {
     await this.repository.delete(agentId);
   }
 
-  private assertProviderSupportsModel(
-    provider: "openai" | "anthropic",
-    model: string,
-  ) {
+  private assertProviderSupportsModel(provider: string, model: string) {
     const normalizedModel = model.trim().toLowerCase();
     if (!normalizedModel) {
       throw new Error("Model is required");
@@ -326,14 +325,25 @@ export class AgentService {
         `Model "${model}" is not compatible with provider "${provider}" (got ${providerInRef}).`,
       );
     }
-    const allowedPrefixes = PROVIDER_MODEL_PREFIXES[provider];
+    const allowedPrefixes =
+      PROVIDER_MODEL_PREFIXES[provider as keyof typeof PROVIDER_MODEL_PREFIXES];
+    if (!allowedPrefixes) {
+      throw new Error(`Provider "${provider}" is not supported.`);
+    }
     const isSupported = allowedPrefixes.some((prefix) =>
       modelId.startsWith(prefix),
     );
 
     if (isSupported) return;
 
-    const expectedFamily = provider === "openai" ? "gpt-*" : "claude-*";
+    const expectedFamily =
+      provider === "openai"
+        ? "gpt-*"
+        : provider === "anthropic"
+          ? "claude-*"
+          : provider === "google"
+            ? "gemini-*"
+            : "llama-* ou claude-*";
     throw new Error(
       `Model "${model}" is not compatible with provider "${provider}" (expected ${expectedFamily}).`,
     );

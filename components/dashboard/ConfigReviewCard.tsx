@@ -7,7 +7,7 @@ import { TelegramSetupModal } from "@/components/TelegramSetupModal";
 import { Bot, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 
-type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash";
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash" | "llama-3.3-70b";
 
 interface BotInfo {
   id: number;
@@ -41,6 +41,11 @@ const MODEL_OPTIONS: Array<{
     value: "gemini-flash",
     label: "Gemini Flash",
     icon: <AgentIcon agent="gemini" />,
+  },
+  {
+    value: "llama-3.3-70b",
+    label: "Llama 3.3 70B",
+    icon: <AgentIcon agent="llama" />,
   },
 ];
 

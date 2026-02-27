@@ -3,7 +3,7 @@ import type { DeploymentGateway } from "@/src/application/agent/contracts";
 type RailwayDeployInput = {
   agentId: string;
   model: string;
-  provider: "openai" | "anthropic";
+  provider: string;
   providerApiKey: string;
   telegramBotToken: string;
   telegramUserId: string;
@@ -137,7 +137,11 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
         PROVIDER_API_KEY: input.providerApiKey,
         ...(input.provider === "openai"
           ? { OPENAI_API_KEY: input.providerApiKey }
-          : { ANTHROPIC_API_KEY: input.providerApiKey }),
+          : input.provider === "anthropic"
+            ? { ANTHROPIC_API_KEY: input.providerApiKey }
+            : input.provider === "google"
+              ? { GEMINI_API_KEY: input.providerApiKey }
+              : { VENICE_API_KEY: input.providerApiKey }),
         TELEGRAM_BOT_TOKEN: input.telegramBotToken,
         TELEGRAM_CHAT_ID: input.telegramChatId ?? "",
         // 1-click Telegram: allowlist the owning user id (no pairing step).
@@ -203,7 +207,7 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
     serviceId: string;
     railwayDomain: string | null;
     setupPassword: string;
-    provider: "openai" | "anthropic";
+    provider: string;
     providerApiKey: string;
     model?: string;
     telegramBotToken: string;
@@ -302,7 +306,15 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
     }
 
     const authChoice =
-      input.provider === "openai" ? "openai-api-key" : "apiKey";
+      input.provider === "openai"
+        ? "openai-api-key"
+        : input.provider === "anthropic"
+          ? "apiKey" // OpenClaw uses "apiKey" as a default Anthropic fallback
+          : input.provider === "google"
+            ? "google-api-key" // Needs google key form in OpenClaw setup
+            : input.provider === "venice"
+              ? "venice-api-key"
+              : "apiKey";
     const basic = Buffer.from(`:${input.setupPassword}`).toString("base64");
 
     const payload: Record<string, any> = {

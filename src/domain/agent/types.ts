@@ -4,14 +4,16 @@ export const AGENT_STATUS = {
   DEPLOYING: "DEPLOYING",
   RUNNING: "RUNNING",
   FAILED: "FAILED",
-  STOPPED: "STOPPED"
+  STOPPED: "STOPPED",
 } as const;
 
 export type AgentStatus = (typeof AGENT_STATUS)[keyof typeof AGENT_STATUS];
 
 export const PROVIDERS = {
   OPENAI: "openai",
-  ANTHROPIC: "anthropic"
+  ANTHROPIC: "anthropic",
+  GOOGLE: "google",
+  VENICE: "venice",
 } as const;
 
 export type Provider = (typeof PROVIDERS)[keyof typeof PROVIDERS];

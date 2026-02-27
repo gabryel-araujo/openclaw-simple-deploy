@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type {
   AgentRepository,
   DeploymentGateway,
-  EncryptionService
+  EncryptionService,
 } from "@/src/application/agent/contracts";
 import { AgentService } from "@/src/application/agent/service";
 import { AGENT_STATUS } from "@/src/domain/agent/types";
@@ -18,11 +18,19 @@ class FakeEncryption implements EncryptionService {
 }
 
 class FakeGateway implements DeploymentGateway {
-  async deployAgent() {
-    return { serviceId: "svc-123", logs: "ok" };
+  async deployAgent(_input: any) {
+    return {
+      serviceId: "svc-123",
+      logs: "ok",
+      railwayDomain: "test.up.railway.app",
+    };
   }
 
-  async restartAgent() {}
+  async restartAgent(_serviceId: string) {}
+  async finalizeSetup(_input: any) {
+    return { logs: "ok", railwayDomain: "test.up.railway.app" };
+  }
+  async deleteService(_serviceId: string) {}
 }
 
 class InMemoryRepo implements AgentRepository {
@@ -39,8 +47,9 @@ class InMemoryRepo implements AgentRepository {
       channel: input.channel,
       status: AGENT_STATUS.DRAFT,
       railwayServiceId: null,
+      railwayDomain: null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
     this.agents.push(agent);
     return agent;
@@ -54,7 +63,11 @@ class InMemoryRepo implements AgentRepository {
     return this.agents.filter((agent) => agent.userId === userId);
   }
 
-  async updateStatus(agentId: string, status: any, railwayServiceId?: string | null) {
+  async updateStatus(
+    agentId: string,
+    status: any,
+    railwayServiceId?: string | null,
+  ) {
     const agent = await this.findById(agentId);
     if (!agent) throw new Error("Agent not found");
     agent.status = status;
@@ -65,11 +78,13 @@ class InMemoryRepo implements AgentRepository {
   }
 
   async saveSecret(input: any) {
-    this.secrets = this.secrets.filter((secret) => secret.agentId !== input.agentId);
+    this.secrets = this.secrets.filter(
+      (secret) => secret.agentId !== input.agentId,
+    );
     this.secrets.push({
       ...input,
       id: `${this.secrets.length + 1}`,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
   }
 
@@ -81,16 +96,21 @@ class InMemoryRepo implements AgentRepository {
     const deployment = {
       ...input,
       id: `${this.deployments.length + 1}`,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     this.deployments.push(deployment);
     return deployment;
   }
 
   async getLatestDeployment(agentId: string) {
-    const entries = this.deployments.filter((deployment) => deployment.agentId === agentId);
+    const entries = this.deployments.filter(
+      (deployment) => deployment.agentId === agentId,
+    );
     return entries[entries.length - 1] ?? null;
   }
+
+  async updateRuntimeSecrets(_input: any) {}
+  async delete(_agentId: string) {}
 }
 
 describe("AgentService", () => {
@@ -107,7 +127,7 @@ describe("AgentService", () => {
       userId: "u1",
       name: "bot",
       model: "gpt-4o",
-      channel: "telegram"
+      channel: "telegram",
     });
 
     expect(agent.status).toBe("DRAFT");
@@ -118,7 +138,7 @@ describe("AgentService", () => {
       userId: "u1",
       name: "bot",
       model: "gpt-4o",
-      channel: "telegram"
+      channel: "telegram",
     });
 
     const configured = await service.configureAgent({
@@ -127,7 +147,8 @@ describe("AgentService", () => {
       provider: "openai",
       apiKey: "sk-test",
       telegramBotToken: "bot-token",
-      telegramChatId: "123"
+      telegramUserId: "u123",
+      telegramChatId: "123",
     });
 
     expect(configured.status).toBe("CONFIGURED");

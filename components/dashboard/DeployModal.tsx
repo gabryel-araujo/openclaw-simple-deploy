@@ -13,7 +13,7 @@ type DeployPhase =
 interface DeployConfig {
   agentName: string;
   model: string;
-  provider: "openai" | "anthropic";
+  provider: string;
   apiKey: string;
   telegramBotToken: string;
   telegramUserId: string;

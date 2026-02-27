@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash";
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash" | "llama-3.3-70b";
 
 interface BotInfo {
   id: number;
@@ -33,7 +33,6 @@ export function DashboardContent({ user }: { user: User }) {
   const [telegramBot, setTelegramBot] = useState<BotInfo | null>(null);
   const router = useRouter();
   const { isActive, loading: subLoading } = useSubscription();
-
 
   // Load persisted selections
   useEffect(() => {

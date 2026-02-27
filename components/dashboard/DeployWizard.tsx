@@ -4,11 +4,12 @@ import { DeployModal } from "@/components/dashboard/DeployModal";
 import { ChannelType } from "@/components/ChannelIcon";
 import { createClient } from "@/src/infrastructure/auth/supabase-client";
 import { User } from "@supabase/supabase-js";
+import { Provider } from "@/src/domain/agent/types";
 import { Bot, Key, Loader2, Rocket, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash";
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash" | "llama-3.3-70b";
 
 interface BotInfo {
   id: number;
@@ -27,13 +28,11 @@ interface DeployWizardProps {
 const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
 
 /** Map front-end model keys to the API model values + provider */
-const MODEL_MAP: Record<
-  ModelKey,
-  { apiModel: string; provider: "openai" | "anthropic" }
-> = {
+const MODEL_MAP: Record<ModelKey, { apiModel: string; provider: Provider }> = {
   "gpt-5.2": { apiModel: "gpt-4o", provider: "openai" },
-  "claude-opus": { apiModel: "claude-3.5-opus", provider: "anthropic" },
-  "gemini-flash": { apiModel: "gpt-4o", provider: "openai" }, // fallback
+  "claude-opus": { apiModel: "claude-3-opus-20240229", provider: "anthropic" },
+  "gemini-flash": { apiModel: "gemini-1.5-flash", provider: "google" },
+  "llama-3.3-70b": { apiModel: "llama-3.3-70b", provider: "venice" },
 };
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -250,7 +249,7 @@ export function DeployWizard({
           config={{
             agentName,
             model: derived.apiModel,
-            provider: derived.provider,
+            provider: derived.provider as any,
             apiKey: apiKey.trim(),
             telegramBotToken: botToken.trim(),
             telegramUserId: telegramUserId.trim(),

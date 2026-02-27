@@ -4,7 +4,7 @@ import type {
   CreateAgentInput,
 } from "@/src/application/agent/contracts";
 import type { AgentStatus } from "@/src/domain/agent/types";
-import type { AgentSecret } from "@/src/domain/agent/types";
+import type { AgentSecret, Provider } from "@/src/domain/agent/types";
 import { db } from "@/src/infrastructure/db/client";
 import {
   agentSecretsTable,
@@ -106,7 +106,7 @@ export class DrizzleAgentRepository implements AgentRepository {
     return {
       id: secret.id,
       agentId: secret.agentId,
-      provider: secret.provider as "openai" | "anthropic",
+      provider: secret.provider as Provider,
       encryptedApiKey: secret.encryptedApiKey,
       telegramBotToken: secret.telegramBotToken,
       telegramChatId: secret.telegramChatId ?? null,

@@ -1,6 +1,6 @@
 import React from "react";
 
-export type AgentType = "claude" | "gemini" | "gpt";
+export type AgentType = "claude" | "gemini" | "gpt" | "llama";
 
 interface AgentIconProps extends React.ComponentProps<"svg"> {
   agent: AgentType;
@@ -67,15 +67,57 @@ const GptLogo = (props: React.ComponentProps<"svg">) => (
   </svg>
 );
 
+const LlamaLogo = (props: React.ComponentProps<"svg">) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <title>Llama</title>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
+  </svg>
+);
+
 export function AgentIcon({ agent, className, ...props }: AgentIconProps) {
   const svgClassName = ["h-full w-full", className].filter(Boolean).join(" ");
 
   switch (agent) {
     case "claude":
-      return <ClaudeLogo className={svgClassName} width="100%" height="100%" {...props} />;
+      return (
+        <ClaudeLogo
+          className={svgClassName}
+          width="100%"
+          height="100%"
+          {...props}
+        />
+      );
     case "gemini":
-      return <GeminiLogo className={svgClassName} width="100%" height="100%" {...props} />;
+      return (
+        <GeminiLogo
+          className={svgClassName}
+          width="100%"
+          height="100%"
+          {...props}
+        />
+      );
     case "gpt":
-      return <GptLogo className={svgClassName} width="100%" height="100%" {...props} />;
+      return (
+        <GptLogo
+          className={svgClassName}
+          width="100%"
+          height="100%"
+          {...props}
+        />
+      );
+    case "llama":
+      return (
+        <LlamaLogo
+          className={svgClassName}
+          width="100%"
+          height="100%"
+          {...props}
+        />
+      );
   }
 }

@@ -18,7 +18,7 @@ import {
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
-type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash";
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash" | "llama-3.3-70b";
 
 const LS_MODEL_KEY = "brclaw:selected_model";
 const LS_CHANNEL_KEY = "brclaw:selected_channel";
@@ -51,6 +51,11 @@ export default function HomePage() {
       value: "gemini-flash",
       label: "Gemini Flash",
       icon: <AgentIcon agent="gemini" />,
+    },
+    {
+      value: "llama-3.3-70b",
+      label: "Llama 3.3 70B",
+      icon: <AgentIcon agent="llama" />,
     },
   ];
 
