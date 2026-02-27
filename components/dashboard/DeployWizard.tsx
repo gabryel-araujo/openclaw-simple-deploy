@@ -31,7 +31,7 @@ const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
 const MODEL_MAP: Record<ModelKey, { apiModel: string; provider: Provider }> = {
   "gpt-5.2": { apiModel: "gpt-4o", provider: "openai" },
   "claude-opus": { apiModel: "claude-3-opus-20240229", provider: "anthropic" },
-  "gemini-flash": { apiModel: "gemini-1.5-flash", provider: "google" },
+  "gemini-flash": { apiModel: "gemini-2.5-flash", provider: "google" },
   "llama-3.3-70b": { apiModel: "llama-3.3-70b", provider: "venice" },
 };
 

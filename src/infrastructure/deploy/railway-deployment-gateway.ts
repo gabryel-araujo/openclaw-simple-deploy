@@ -356,10 +356,15 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
 
       lastErrorDetail = String(detail);
 
-      const looksLikeSlowBoot = /gateway did not become ready in time/i.test(
-        lastErrorDetail,
-      );
-      if (!looksLikeSlowBoot || attempt === maxAttempts) {
+      const isTransientError =
+        runRes.status === 404 ||
+        runRes.status === 502 ||
+        runRes.status === 503 ||
+        /gateway did not become ready in time|application not found/i.test(
+          lastErrorDetail,
+        );
+
+      if (!isTransientError || attempt === maxAttempts) {
         throw new Error(`OpenClaw setup failed: ${lastErrorDetail}`);
       }
 

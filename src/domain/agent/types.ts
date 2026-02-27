@@ -14,6 +14,7 @@ export const PROVIDERS = {
   ANTHROPIC: "anthropic",
   GOOGLE: "google",
   VENICE: "venice",
+  GROQ: "groq",
 } as const;
 
 export type Provider = (typeof PROVIDERS)[keyof typeof PROVIDERS];

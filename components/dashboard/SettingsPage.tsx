@@ -77,7 +77,13 @@ const CHANNELS: {
 ];
 
 /* ─── Small reusable toggle ─── */
-function FutureToggle({ label, description }: { label: string; description: string }) {
+function FutureToggle({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
@@ -204,8 +210,8 @@ export function SettingsPage({ user: _user }: { user: User }) {
                   c.disabled
                     ? "cursor-not-allowed border-slate-800/50 text-slate-600"
                     : channel === c.value
-                    ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
-                    : "border-slate-800 bg-slate-950/30 text-slate-400 hover:border-slate-700 hover:text-white"
+                      ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
+                      : "border-slate-800 bg-slate-950/30 text-slate-400 hover:border-slate-700 hover:text-white"
                 }`}
               >
                 <span className="flex h-4 w-4 items-center justify-center">
@@ -347,9 +353,7 @@ export function SettingsPage({ user: _user }: { user: User }) {
           <button
             onClick={() => {
               if (
-                window.confirm(
-                  "Deseja redefinir todas as preferências salvas?"
-                )
+                window.confirm("Deseja redefinir todas as preferências salvas?")
               ) {
                 localStorage.removeItem(LS_MODEL_KEY);
                 localStorage.removeItem(LS_CHANNEL_KEY);
