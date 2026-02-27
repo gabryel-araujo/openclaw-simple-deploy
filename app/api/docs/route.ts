@@ -4,7 +4,7 @@ export async function GET() {
   return ok({
     openapi: "3.0.3",
     info: {
-      title: "SimpleClaw BR API",
+      title: "Simpleclaw Sync API",
       version: "0.1.0"
     },
     paths: {

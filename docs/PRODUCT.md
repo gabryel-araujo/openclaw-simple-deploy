@@ -1,4 +1,4 @@
-# 🇧🇷 SimpleClaw BR — Documentação Completa do Produto
+# 🇧🇷 Simpleclaw Sync — Documentação Completa do Produto
 
 > **"Vercel para OpenClaw"** — Deploy 1-click de agentes de IA com integração Telegram, sem terminal, sem DevOps.
 
@@ -6,7 +6,7 @@
 
 ## 1. Visão Geral do Produto
 
-O SimpleClaw BR é uma plataforma SaaS que permite qualquer pessoa (inclusive não-técnica) implantar um agente de IA baseado no [OpenClaw](https://www.simpleclaw.com/) em menos de 1 minuto. O usuário escolhe o modelo de IA, conecta o Telegram, paga a assinatura, e a plataforma provisiona automaticamente um container na nuvem com o OpenClaw configurado e rodando.
+O Simpleclaw Sync é uma plataforma SaaS que permite qualquer pessoa (inclusive não-técnica) implantar um agente de IA baseado no [OpenClaw](https://www.simpleclaw.com/) em menos de 1 minuto. O usuário escolhe o modelo de IA, conecta o Telegram, paga a assinatura, e a plataforma provisiona automaticamente um container na nuvem com o OpenClaw configurado e rodando.
 
 ### Proposta de Valor
 

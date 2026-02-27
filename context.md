@@ -1,10 +1,10 @@
-# 🇧🇷 SimpleClaw BR – Plataforma de Deploy 1-Click para OpenClaw
+# 🇧🇷 Simpleclaw Sync – Plataforma de Deploy 1-Click para OpenClaw
 
 - Principal referencia: https://www.simpleclaw.com/
 
 ## Visão Geral
 
-O SimpleClaw BR é uma plataforma web que permite usuários implantarem e gerenciarem agentes OpenClaw com apenas um clique, sem necessidade de conhecimentos técnicos em infraestrutura ou DevOps. O objetivo é eliminar a complexidade técnica de servidores e configurações, permitindo que o usuário tenha um bot de IA ativo 24/7 em menos de um minuto.
+O Simpleclaw Sync é uma plataforma web que permite usuários implantarem e gerenciarem agentes OpenClaw com apenas um clique, sem necessidade de conhecimentos técnicos em infraestrutura ou DevOps. O objetivo é eliminar a complexidade técnica de servidores e configurações, permitindo que o usuário tenha um bot de IA ativo 24/7 em menos de um minuto.
 
 ---
 

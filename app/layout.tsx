@@ -4,7 +4,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "SimpleClaw BR",
+  title: "Simpleclaw Sync",
   description: "Deploy 1-click de agentes OpenClaw no Brasil",
 };
 

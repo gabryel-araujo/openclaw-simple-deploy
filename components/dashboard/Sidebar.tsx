@@ -6,8 +6,9 @@ import {
   LayoutDashboard,
   Bot,
   CreditCard,
-  Settings,
   LogOut,
+  UserCircle,
+  RefreshCcw,
 } from "lucide-react";
 import { createClient } from "@/src/infrastructure/auth/supabase-client";
 import { useRouter } from "next/navigation";
@@ -20,7 +21,8 @@ export function Sidebar() {
     { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
     { href: "/dashboard/agents", label: "Meus Agentes", icon: Bot },
     { href: "/dashboard/billing", label: "Cobrança", icon: CreditCard },
-    { href: "/dashboard/settings", label: "Configurações", icon: Settings },
+    { href: "/dashboard/profile", label: "Perfil", icon: UserCircle },
+    // { href: "/dashboard/settings", label: "Configurações", icon: Settings },
   ];
 
   const handleLogout = async () => {
@@ -34,10 +36,17 @@ export function Sidebar() {
       <div className="flex h-full flex-col px-3 py-4">
         <div className="mb-10 px-2 mt-4">
           <Link href="/dashboard" className="group flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-linear-to-br from-cyan-400 via-blue-500 to-indigo-600 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all group-hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] group-hover:scale-105" />
-            <span className="self-center text-xl font-bold whitespace-nowrap text-white tracking-wide">
-              Simple<span className="text-cyan-400">Claw</span>
-            </span>
+            <div className="h-9 w-9 rounded-xl bg-linear-to-br from-cyan-400 via-blue-500 to-indigo-600 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all group-hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] group-hover:scale-105 flex items-center justify-center">
+              <RefreshCcw className="h-6 w-6 text-white" />
+            </div>
+            <section className="flex flex-col items-start">
+              <span className="text-xl font-bold whitespace-nowrap text-white tracking-wide">
+                Simple<span className="text-cyan-400">Claw</span>
+              </span>
+              <span className="text-xs font-bold whitespace-nowrap text-white tracking-wide">
+                Sync
+              </span>
+            </section>
           </Link>
         </div>
 

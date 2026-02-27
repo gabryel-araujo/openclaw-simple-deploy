@@ -368,7 +368,7 @@ export function PaymentModal({ planId, onClose }: PaymentModalProps) {
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-800">
           <div>
             <p className="text-xs uppercase tracking-widest text-cyan-400 mb-1">
-              SimpleClaw BR
+              Simpleclaw Sync
             </p>
             <h2 className="text-xl font-bold text-white">
               {step === "plan" ? "Ativar Licença" : "Dados de Pagamento"}

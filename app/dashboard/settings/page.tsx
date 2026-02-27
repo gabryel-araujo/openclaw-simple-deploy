@@ -1,8 +1,8 @@
-import { ProfileForm } from "@/components/dashboard/ProfileForm";
+import { SettingsPage } from "@/components/dashboard/SettingsPage";
 import { createClient } from "@/src/infrastructure/auth/supabase";
 import { redirect } from "next/navigation";
 
-export default async function ProfilePage() {
+export default async function SettingsRoute() {
   const supabase = await createClient();
   const {
     data: { session },
@@ -13,18 +13,18 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6 animate-slideUp">
+    <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-white">
-          Seu Perfil
+          Configurações
         </h1>
         <p className="text-slate-400">
-          Gerencie suas informações pessoais e configurações da conta.
+          Gerencie as preferências do seu agente, integrações e notificações.
         </p>
       </div>
 
-      <div className="rounded-xl bg-slate-950/30 p-6 md:p-8">
-        <ProfileForm user={session.user} />
+      <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-6 md:p-8">
+        <SettingsPage user={session.user} />
       </div>
     </div>
   );

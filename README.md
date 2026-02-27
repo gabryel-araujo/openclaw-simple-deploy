@@ -1,4 +1,4 @@
-# SimpleClaw BR (MVP)
+# Simpleclaw Sync (MVP)
 
 Plataforma de deploy 1-click para OpenClaw com foco no mercado brasileiro.
 
