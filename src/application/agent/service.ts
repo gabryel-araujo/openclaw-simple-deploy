@@ -13,7 +13,6 @@ const PROVIDER_MODEL_PREFIXES = {
   openai: ["gpt-", "o1-", "o3-"],
   anthropic: ["claude-"],
   google: ["gemini-"],
-  venice: ["llama-", "claude-"],
 } as const;
 
 function toOpenClawModelRef(provider: string, model: string) {
@@ -341,9 +340,7 @@ export class AgentService {
         ? "gpt-*"
         : provider === "anthropic"
           ? "claude-*"
-          : provider === "google"
-            ? "gemini-*"
-            : "llama-* ou claude-*";
+          : "gemini-*";
     throw new Error(
       `Model "${model}" is not compatible with provider "${provider}" (expected ${expectedFamily}).`,
     );

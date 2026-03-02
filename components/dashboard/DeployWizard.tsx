@@ -9,7 +9,7 @@ import { Bot, Key, Loader2, Rocket, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash" | "llama-3.3-70b";
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash-2.5";
 
 interface BotInfo {
   id: number;
@@ -31,8 +31,7 @@ const LS_TELEGRAM_TOKEN_KEY = "brclaw:telegram_token";
 const MODEL_MAP: Record<ModelKey, { apiModel: string; provider: Provider }> = {
   "gpt-5.2": { apiModel: "gpt-4o", provider: "openai" },
   "claude-opus": { apiModel: "claude-3-opus-20240229", provider: "anthropic" },
-  "gemini-flash": { apiModel: "gemini-2.5-flash", provider: "google" },
-  "llama-3.3-70b": { apiModel: "llama-3.3-70b", provider: "venice" },
+  "gemini-flash-2.5": { apiModel: "gemini-2.5-flash", provider: "google" },
 };
 
 async function parseJson<T>(response: Response): Promise<T> {

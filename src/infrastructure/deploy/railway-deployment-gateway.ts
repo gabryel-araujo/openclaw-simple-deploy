@@ -311,10 +311,8 @@ export class RailwayDeploymentGateway implements DeploymentGateway {
         : input.provider === "anthropic"
           ? "apiKey" // OpenClaw uses "apiKey" as a default Anthropic fallback
           : input.provider === "google"
-            ? "google-api-key" // Needs google key form in OpenClaw setup
-            : input.provider === "venice"
-              ? "venice-api-key"
-              : "apiKey";
+            ? "gemini-api-key" // Needs google key form in OpenClaw setup
+            : "apiKey";
     const basic = Buffer.from(`:${input.setupPassword}`).toString("base64");
 
     const payload: Record<string, any> = {

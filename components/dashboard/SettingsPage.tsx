@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 /* ─── Types ─── */
-type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash" | "llama-3.3-70b";
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash-2.5";
 type ChannelType = "telegram" | "discord" | "whatsapp";
 
 interface BotInfo {
@@ -36,18 +36,13 @@ const MODELS: { value: ModelKey; label: string; icon: React.ReactNode }[] = [
   { value: "gpt-5.2", label: "GPT-5.2", icon: <AgentIcon agent="gpt" /> },
   {
     value: "claude-opus",
-    label: "Claude Opus 4.5",
+    label: "Claude Opus",
     icon: <AgentIcon agent="claude" />,
   },
   {
-    value: "gemini-flash",
+    value: "gemini-flash-2.5",
     label: "Gemini Flash",
     icon: <AgentIcon agent="gemini" />,
-  },
-  {
-    value: "llama-3.3-70b",
-    label: "Llama 3.3 70B",
-    icon: <AgentIcon agent="llama" />,
   },
 ];
 

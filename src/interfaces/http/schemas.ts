@@ -7,7 +7,7 @@ export const createAgentSchema = z.object({
 });
 
 export const configAgentSchema = z.object({
-  provider: z.enum(["openai", "anthropic", "google", "venice"]),
+  provider: z.enum(["openai", "anthropic", "google"]),
   apiKey: z.string().min(10),
   telegramBotToken: z.string().min(10),
   telegramUserId: z.string().min(2),

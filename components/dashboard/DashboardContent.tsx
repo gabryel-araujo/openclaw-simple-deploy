@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash" | "llama-3.3-70b";
+type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash-2.5";
 
 interface BotInfo {
   id: number;

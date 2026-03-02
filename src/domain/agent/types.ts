@@ -13,7 +13,6 @@ export const PROVIDERS = {
   OPENAI: "openai",
   ANTHROPIC: "anthropic",
   GOOGLE: "google",
-  VENICE: "venice",
   GROQ: "groq",
 } as const;
 

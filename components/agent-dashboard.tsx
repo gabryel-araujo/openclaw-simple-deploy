@@ -78,7 +78,6 @@ export function AgentDashboard({ userId }: { userId: string }) {
     if (model.startsWith("gpt-")) return "openai" as const;
     if (model.startsWith("claude-")) return "anthropic" as const;
     if (model.startsWith("gemini-")) return "google" as const;
-    if (model.startsWith("llama-")) return "venice" as const;
     return null;
   }, [selectedAgent?.model]);
 
@@ -426,7 +425,6 @@ export function AgentDashboard({ userId }: { userId: string }) {
             <option value="openai">openai</option>
             <option value="anthropic">anthropic</option>
             <option value="google">google</option>
-            <option value="venice">venice</option>
           </select>
           <div className="text-xs text-slate-400">
             Modelo do agente:{" "}
