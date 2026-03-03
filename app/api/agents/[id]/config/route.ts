@@ -1,5 +1,10 @@
 import { getAgentService } from "@/src/application/container";
-import { HttpError, getUserIdFromHeaders, handleApiError, ok } from "@/src/interfaces/http/http";
+import {
+  HttpError,
+  getUserIdFromHeaders,
+  handleApiError,
+  ok,
+} from "@/src/interfaces/http/http";
 import { configAgentSchema } from "@/src/interfaces/http/schemas";
 
 type RouteContext = {
@@ -12,7 +17,10 @@ export async function POST(request: Request, context: RouteContext) {
     const body = await request.json();
     const payload = configAgentSchema.safeParse(body);
     if (!payload.success) {
-      throw new HttpError(400, payload.error.issues[0]?.message ?? "Invalid payload");
+      throw new HttpError(
+        400,
+        payload.error.issues[0]?.message ?? "Invalid payload",
+      );
     }
 
     const service = getAgentService();
@@ -20,7 +28,11 @@ export async function POST(request: Request, context: RouteContext) {
     const agent = await service.configureAgent({
       userId,
       agentId: id,
-      ...payload.data
+      provider: payload.data.provider ?? "openai",
+      apiKey: payload.data.apiKey ?? "",
+      telegramBotToken: payload.data.telegramBotToken ?? "",
+      telegramUserId: payload.data.telegramUserId ?? "",
+      telegramChatId: payload.data.telegramChatId ?? undefined,
     });
 
     return ok({ agent });

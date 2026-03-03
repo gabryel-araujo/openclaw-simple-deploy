@@ -1,5 +1,10 @@
 import { getAgentService } from "@/src/application/container";
-import { HttpError, getUserIdFromHeaders, handleApiError, ok } from "@/src/interfaces/http/http";
+import {
+  HttpError,
+  getUserIdFromHeaders,
+  handleApiError,
+  ok,
+} from "@/src/interfaces/http/http";
 import { createAgentSchema } from "@/src/interfaces/http/schemas";
 
 export async function GET(request: Request) {
@@ -18,14 +23,19 @@ export async function POST(request: Request) {
     const body = await request.json();
     const payload = createAgentSchema.safeParse(body);
     if (!payload.success) {
-      throw new HttpError(400, payload.error.issues[0]?.message ?? "Invalid payload");
+      throw new HttpError(
+        400,
+        payload.error.issues[0]?.message ?? "Invalid payload",
+      );
     }
 
     const service = getAgentService();
     const userId = getUserIdFromHeaders(request.headers);
     const agent = await service.createAgent({
       userId,
-      ...payload.data
+      name: payload.data.name,
+      model: payload.data.model,
+      channel: payload.data.channel,
     });
     return ok({ agent }, 201);
   } catch (error) {
