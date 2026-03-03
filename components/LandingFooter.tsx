@@ -1,6 +1,8 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import AdaptaLogo from "@/app/assets/adapta-logo-text-white-bg-transparent.avif";
+import Image from "next/image";
 
 interface FooterLink {
   label: string;
@@ -29,8 +31,7 @@ const COLUMNS: FooterColumn[] = [
     links: [
       { label: "GPT-5.2", href: "#" },
       { label: "Claude Opus 4.5", href: "#" },
-      { label: "Gemini Flash", href: "#" },
-      { label: "Llama 3.3 70B", href: "#" },
+      { label: "Gemini Flash 2.5", href: "#" },
     ],
   },
   {
@@ -45,9 +46,6 @@ const COLUMNS: FooterColumn[] = [
     title: "Empresa",
     links: [
       { label: "Sobre a Adapta", href: "https://adapta.org", external: true },
-      { label: "adapta.org", href: "https://adapta.org", external: true },
-      { label: "Blog", href: "https://adapta.org", external: true },
-      { label: "Contato", href: "https://adapta.org", external: true },
     ],
   },
 ];
@@ -94,23 +92,17 @@ export function LandingFooter() {
                   rel="noopener noreferrer"
                   className="group mt-1 inline-flex items-end gap-2"
                 >
-                  <span
-                    className="text-4xl font-black tracking-tight text-white transition-colors group-hover:text-cyan-300"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                    }}
-                  >
-                    ADAPTA
-                  </span>
-                  <ExternalLink className="mb-1.5 h-4 w-4 text-slate-600 transition-colors group-hover:text-cyan-400" />
+                  <Image
+                    src={AdaptaLogo}
+                    alt="Adapta Logo"
+                    width={100}
+                    height={100}
+                  />
                 </a>
               </div>
 
               <p className="text-sm leading-relaxed text-slate-500">
-                Simpleclaw Sync é a solução de deploy 1-click de agentes
+                Simpleclaw é a solução de deploy rápido e fácil de agentes
                 OpenClaw
               </p>
 
@@ -163,12 +155,8 @@ export function LandingFooter() {
           {/* ── Bottom bar ── */}
           <div className="mt-14 flex flex-col items-center gap-4 border-t border-slate-800/60 pt-8 sm:flex-row sm:justify-between">
             <div className="flex items-center gap-3">
-              {/* Adapta dot */}
-              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              </span>
               <p className="text-xs text-slate-600">
-                &copy; {year}{" "}
+                {year}{" "}
                 <a
                   href="https://adapta.org"
                   target="_blank"
@@ -182,7 +170,7 @@ export function LandingFooter() {
             </div>
 
             <div className="flex items-center gap-5">
-              {["Privacidade", "Termos", "Cookies"].map((item) => (
+              {["Termos de uso", "Política de privacidade"].map((item) => (
                 <a
                   key={item}
                   href="#"

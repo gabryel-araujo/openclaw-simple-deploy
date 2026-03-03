@@ -10,6 +10,8 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import TelegramBotFather from "@/app/assets/botfather-selection.png";
+import Image from "next/image";
 
 interface BotInfo {
   id: number;
@@ -28,15 +30,17 @@ const STEPS = [
     title: "Abra o Telegram",
     description: (
       <>
-        Abra o Telegram e busque por{" "}
-        <a
-          href="https://t.me/BotFather"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-cyan-400 underline hover:text-cyan-300"
-        >
-          @BotFather
-        </a>
+        Abra o seu aplicativo do Telegram, vá até o menu superior de busca e
+        busque por @BotFather, dentro da sessão de "Apps" (Atente-se para
+        selecionar o oficial do BotFather) e clique em "Abrir".
+        <div className="flex mt-2">
+          <Image
+            src={TelegramBotFather}
+            alt="Seleção do BotFather no Telegram"
+            width={100}
+            height={100}
+          />
+        </div>
       </>
     ),
   },
@@ -45,18 +49,17 @@ const STEPS = [
     title: "Crie um novo bot",
     description: (
       <>
-        Envie o comando{" "}
+        Depois de abrir o BotFather, clique em "Create a New Bot"Envie o comando{" "}
         <code className="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300 text-xs">
           /newbot
         </code>{" "}
-        para o BotFather
       </>
     ),
   },
   {
     number: "3",
-    title: "Escolha um nome",
-    description: "Digite um nome para o seu bot (ex: Meu Assistente)",
+    title: "Escolha um nome para o seu bot",
+    description: "Digite um nome para o seu bot (ex: SimpleClaw)",
   },
   {
     number: "4",
@@ -67,15 +70,15 @@ const STEPS = [
         <code className="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300 text-xs">
           bot
         </code>{" "}
-        (ex: meu_assistente_bot)
+        (ex: simpleclaw_bot)
       </>
     ),
   },
   {
     number: "5",
-    title: "Copie o token",
+    title: "Copie o token ",
     description:
-      "O BotFather vai enviar uma mensagem com o token. Copie o código que começa com números seguido de dois pontos (ex: 123456789:ABC...)",
+      "O BotFather vai gerar um token único para você. Copie o token e guarde em um local seguro. Você precisará dele para configurar o seu agente.",
   },
 ];
 

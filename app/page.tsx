@@ -15,9 +15,13 @@ import {
   Coins,
   RefreshCw,
   Rocket,
+  WandSparkles,
 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import AdaptaLogo from "@/app/assets/adapta-logo-text-white-bg-transparent.avif";
+import OpenClawLogo from "@/app/assets/openclaw.png";
 
 type ModelKey = "claude-opus" | "gpt-5.2" | "gemini-flash-2.5";
 
@@ -96,15 +100,15 @@ export default function HomePage() {
     label: string;
     icon: React.ReactNode;
   }> = [
-    { value: "gpt-5.2", label: "GPT", icon: <AgentIcon agent="gpt" /> },
+    { value: "gpt-5.2", label: "GPT 5.2", icon: <AgentIcon agent="gpt" /> },
     {
       value: "claude-opus",
-      label: "Claude Opus",
+      label: "Claude Opus 4.5",
       icon: <AgentIcon agent="claude" />,
     },
     {
       value: "gemini-flash-2.5",
-      label: "Gemini Flash",
+      label: "Gemini Flash 2.5",
       icon: <AgentIcon agent="gemini" />,
     },
   ];
@@ -187,11 +191,11 @@ export default function HomePage() {
       icon: Rocket,
       title: "Deploy",
       tradicional: {
-        text: "Manual",
-        detail: "Scripts, Dockerfiles e cloud providers",
+        text: "Manual, complexo e demorado",
+        detail: "Scripts, Dockerfiles, cloud providers, etc.",
       },
       simples: {
-        text: "1 clique",
+        text: "5 minutos, rápido e fácil",
         detail: "Railway + OpenClaw configurados automaticamente",
       },
     },
@@ -375,13 +379,11 @@ export default function HomePage() {
           }}
         />
         {/* ── Announcement bar ── */}
-        <div className="flex items-center justify-center gap-2 border-b border-slate-800/50 bg-linear-to-r from-cyan-950/0 via-cyan-900/20 to-cyan-950/0 px-4 py-2">
+        <div className="flex items-center justify-center gap-2 border-b border-slate-800/50 bg-linear-to-r from-cyan-950/0 via-cyan-900/20 to-cyan-950/0 px-4 py-4">
           <span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] animate-pulse" />
           <p className="text-[11px] font-semibold tracking-[0.12em] text-cyan-300/80 uppercase">
-            Deploy de Agentes OpenClaw &middot; 1-Click &middot; Infraestrutura
-            Gerenciada
+            Deploy do OpenClaw com 1-Click
           </p>
-          <span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] animate-pulse" />
         </div>
 
         {/* ── Ambient glow blobs ── */}
@@ -408,47 +410,62 @@ export default function HomePage() {
             <div className="max-w-4xl">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
-                  <span className="inline-block h-2 w-2 rounded-full bg-cyan-300" />
-                  Simpleclaw Sync
+                  <Image
+                    src={OpenClawLogo}
+                    alt="OpenClaw Logo"
+                    width={20}
+                    height={20}
+                  />
+                  <span className="text-sm text-slate-400">SimpleClaw</span>
                 </div>
+                <span className="text-sm text-slate-400">feito por</span>
+                <Image
+                  src={AdaptaLogo}
+                  alt="Adapta Logo"
+                  width={100}
+                  height={100}
+                />
               </div>
 
               <h1 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
-                Faça deploy do <span className="text-cyan-400">OpenClaw</span>{" "}
-                sem travar na configuração.
+                Faça deploy do seu agente de IA com o{" "}
+                <span className="text-cyan-400">OpenClaw</span> em menos de 5
+                minutos.
               </h1>
-              <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-300 md:text-base">
-                Em vez de gastar tempo com setup manual, infraestrutura e
-                ajustes, você escolhe seu modelo, conecta o canal e inicia o
-                deploy.
-              </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <Clock3 className="h-4 w-4 text-cyan-300" />
                   <p className="mt-2 text-sm font-semibold text-white">
-                    Ganha tempo
+                    Ganhe tempo
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Menos setup manual e menos retrabalho.
+                    Ao invés de ficar preso nas configurações de uma VPS,
+                    segurança, backups, etc. Você pode fazer o deploy em menos
+                    de 5 minutos e já seguir usando seu agente do OpenClaw{" "}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <Coins className="h-4 w-4 text-emerald-300" />
                   <p className="mt-2 text-sm font-semibold text-white">
-                    Gasta menos
+                    Economize dinheiro
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Reduz custo inicial de implementação.
+                    Um erro na sua configuração pode custar caro. Com o
+                    SimpleClaw, você pode fazer o deploy em menos de 5 minutos e
+                    já seguir usando seu agente do OpenClaw sem se preocupar com
+                    erros de configuração.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:col-span-2 md:col-span-1">
-                  <Rocket className="h-4 w-4 text-violet-300" />
+                  <WandSparkles className="h-4 w-4 text-violet-300" />
                   <p className="mt-2 text-sm font-semibold text-white">
-                    Vai ao ponto
+                    Rápido e customizável
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Fluxo direto para ativação e deploy.
+                    Você pode fazer o deploy em menos de 5 minutos e já seguir
+                    usando seu agente do OpenClaw, focando em deixar seu agente
+                    do seu jeito.
                   </p>
                 </div>
               </div>
@@ -460,21 +477,26 @@ export default function HomePage() {
             <div className="mb-3 flex w-full flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <section>
                 <h2 className="text-xl font-semibold text-white md:text-2xl">
-                  Configure seu deploy
+                  Vamos lá?
                 </h2>
                 <p className="mt-2 text-sm text-slate-400">
-                  Selecione o modelo e o canal. O restante do fluxo é guiado.
+                  Comece selecionando o seu modelo favorito e o canal de
+                  mensagens que você prefere usar. Vamos te guiar por todo o
+                  processo.
                 </p>
               </section>
               <span className="inline-flex w-fit items-center rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200 md:shrink-0">
-                Apenas 8 unidades disponíveis!
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                  Apenas 32 unidades restantes!
+                </div>
               </span>
             </div>
 
             {/* Model selection */}
             <section className="mt-4">
               <p className="my-4 max-w-2xl text-slate-300 font-bold">
-                Qual modelo você gostaria de usar?
+                Qual modelo você gostaria de usar no seu agente?
               </p>
               <ModelButton
                 name="model-group"
@@ -487,7 +509,7 @@ export default function HomePage() {
             {/* Channel selection */}
             <section>
               <p className="my-4 max-w-2xl text-slate-300 font-bold">
-                Qual canal você prefere usar para mandar as mensagens?
+                Qual canal você prefere usar para interagir com seu agente?
               </p>
               <ModelButton
                 name="channel-group"
@@ -501,10 +523,10 @@ export default function HomePage() {
                 <div className="mt-4">
                   <button
                     onClick={() => setIsTelegramModalOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2.5 text-sm font-semibold text-sky-300 hover:bg-sky-500/20 transition-colors"
+                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2.5 text-sm font-semibold text-sky-300 hover:bg-sky-500/20 transition-colors cursor-pointer"
                   >
                     <Bot className="h-4 w-4" />
-                    Configurar Bot do Telegram
+                    Configurar Telegram Bot
                   </button>
                 </div>
               )}
@@ -538,7 +560,8 @@ export default function HomePage() {
                 {!isLoggedIn ? (
                   <div>
                     <p className="text-xs text-slate-500 mb-2">
-                      Faça login para continuar com o deploy:
+                      Tudo certo com a configuração do seu bot, agora faça login
+                      para continuar com o deploy:
                     </p>
                     <GoogleLogin
                       onSuccess={handleLoginSuccess}
@@ -582,21 +605,6 @@ export default function HomePage() {
           )}
         </div>
       </div>
-      {/* ── Marquee strip – full viewport width ── */}
-      <section
-        className="marquee-root relative w-full overflow-hidden py-5 cursor-default select-none mt-8"
-        aria-hidden="true"
-      >
-        {/* Edge fade masks */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32 " />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32 " />
-
-        <div className="flex flex-col gap-3">
-          <MarqueeRow chips={ROW_ONE} />
-          <MarqueeRow chips={ROW_TWO} reverse />
-        </div>
-      </section>
-
       {/* Lower Section */}
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pt-10 pb-0 md:pt-14">
         {/* ── Comparison ── */}
@@ -608,7 +616,7 @@ export default function HomePage() {
                 ✕
               </span>
               <span className="text-sm font-semibold text-red-300 uppercase tracking-wider">
-                Método tradicional
+                Método manual
               </span>
             </div>
             <div className="w-px bg-slate-800/60" />
@@ -617,7 +625,7 @@ export default function HomePage() {
                 ✓
               </span>
               <span className="text-sm font-semibold text-emerald-300 uppercase tracking-wider">
-                Simpleclaw Sync
+                Simpleclaw
               </span>
             </div>
           </div>
@@ -675,39 +683,18 @@ export default function HomePage() {
               </div>
             );
           })}
-
-          {/* Footer CTA */}
-          <div className="border-t border-slate-800/60 bg-linear-to-r from-red-950/10 via-slate-950/60 to-emerald-950/10 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-slate-500 text-center sm:text-left">
-              Economize tempo, reduza riscos e coloque seu agente no ar hoje
-              mesmo.
-            </p>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
-              <Rocket className="h-3 w-3" />
-              Deploy 1-click disponível agora
-            </span>
-          </div>
         </section>
 
         {/* ── Login / Acesse seus agentes ── */}
         {!isLoggedIn && (
           <section className="login-card-border animate-fadeIn">
             <div className="login-card-inner relative px-6 py-12 md:py-16 flex flex-col items-center text-center gap-6 overflow-hidden">
-              {/* Glow blob */}
-              <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-40 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
-
-              {/* Badge */}
-              <span className="relative inline-flex items-center gap-1.5 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                Acesso restrito
-              </span>
-
               <div className="relative">
                 <h2 className="text-2xl font-bold text-white md:text-3xl">
-                  Acesse seus <span className="text-cyan-400">agentes</span>
+                  Acesse os seus <span className="text-cyan-400">agentes</span>
                 </h2>
                 <p className="mt-3 max-w-md text-sm text-slate-400 leading-relaxed">
-                  Entre com sua conta Google para gerenciar seus agentes
+                  Entre com sua conta Google para gerenciar os agentes
                   implantados, acompanhar métricas e configurar integrações.
                 </p>
               </div>

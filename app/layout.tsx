@@ -4,8 +4,9 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "Simpleclaw Sync",
-  description: "Deploy 1-click de agentes OpenClaw no Brasil",
+  title: "Simpleclaw - Um produto Adapta.org",
+  description:
+    "Deploy 1-click de agentes OpenClaw no Brasil - Um produto Adapta.org",
 };
 
 export default function RootLayout({

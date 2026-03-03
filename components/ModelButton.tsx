@@ -72,7 +72,11 @@ export function ModelButton<T extends string>({
                 <span
                   className={[
                     "inline-flex h-5 w-5 items-center justify-center [&>svg]:h-full [&>svg]:w-full [&>svg]:shrink-0",
-                    disabled ? "text-zinc-600" : selected ? "text-cyan-300" : "text-zinc-200/90",
+                    disabled
+                      ? "text-zinc-600"
+                      : selected
+                        ? "text-cyan-300"
+                        : "text-zinc-200/90",
                   ].join(" ")}
                 >
                   {opt.icon}
@@ -87,18 +91,6 @@ export function ModelButton<T extends string>({
                   {opt.badge}
                 </span>
               )}
-
-              {/* Check icon (visible when selected) */}
-              <span
-                className={[
-                  "ml-1 inline-flex h-5 w-5 items-center justify-center",
-                  selected ? "opacity-100" : "opacity-0",
-                  "transition-opacity",
-                ].join(" ")}
-                aria-hidden="true"
-              >
-                <CheckIcon className="h-4 w-4 text-cyan-400" />
-              </span>
             </label>
           );
         })}
